@@ -26,8 +26,33 @@ from config import BEST_MODEL_PATH, CLASS_NAMES  # noqa: E402
 from dataset import eval_transforms  # noqa: E402
 from model import load_model_for_inference  # noqa: E402
 from grad_cam import generate_gradcam_overlay  # noqa: E402
+from prediction_logger import log_prediction, compute_stats  # noqa: E402
 
-UNCERTAIN_THRESHOLD = 0.60  # below this confidence, flag as "not sure"
+UNCERTAIN_THRESHOLD = 0.75  # below this confidence, flag as uncertain
+ENTROPY_THRESHOLD = 0.55    # normalized entropy above this = model is genuinely confused
+
+import math
+
+def is_uncertain(probs_tensor) -> tuple[bool, str]:
+    """
+    Two-stage uncertainty check:
+    1. Confidence below threshold (model weakly prefers one class)
+    2. High entropy (probability mass nearly equally split between classes)
+    Returns (uncertain: bool, reason: str)
+    """
+    p = [probs_tensor[i].item() for i in range(len(probs_tensor))]
+    confidence = max(p)
+
+    # Normalized Shannon entropy (0 = certain, 1 = maximum confusion)
+    entropy = -sum(pi * math.log(pi + 1e-9) for pi in p)
+    max_entropy = math.log(len(p))
+    norm_entropy = entropy / max_entropy
+
+    if norm_entropy > ENTROPY_THRESHOLD:
+        return True, "high_entropy"
+    if confidence < UNCERTAIN_THRESHOLD:
+        return True, "low_confidence"
+    return False, "confident"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -83,11 +108,18 @@ async def predict(file: UploadFile = File(...)):
         probs = torch.softmax(outputs, dim=1)[0]
         pred_idx = probs.argmax().item()
 
+    pred_class = CLASS_NAMES[pred_idx]
+    confidence = round(probs[pred_idx].item(), 4)
+    uncertain, uncertainty_reason = is_uncertain(probs)
+
+    log_prediction(pred_class, confidence, uncertain, source="predict")
+
     return {
-        "class": CLASS_NAMES[pred_idx],
-        "confidence": round(probs[pred_idx].item(), 4),
+        "class": pred_class,
+        "confidence": confidence,
         "probabilities": {CLASS_NAMES[i]: round(p.item(), 4) for i, p in enumerate(probs)},
-        "uncertain": probs[pred_idx].item() < UNCERTAIN_THRESHOLD,
+        "uncertain": uncertain,
+        "uncertainty_reason": uncertainty_reason,
     }
 
 
@@ -111,6 +143,14 @@ async def predict_gradcam(file: UploadFile = File(...)):
 
     overlay, pred_class, confidence = generate_gradcam_overlay(model, image, device=DEVICE)
 
+    with torch.no_grad():
+        tensor2 = eval_transforms(image).unsqueeze(0).to(DEVICE)
+        outputs2 = model(tensor2)
+        probs2 = torch.softmax(outputs2, dim=1)[0]
+    uncertain, uncertainty_reason = is_uncertain(probs2)
+
+    log_prediction(pred_class, confidence, uncertain, source="predict-gradcam")
+
     buf = io.BytesIO()
     overlay.save(buf, format="PNG")
     overlay_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
@@ -118,6 +158,18 @@ async def predict_gradcam(file: UploadFile = File(...)):
     return {
         "class": pred_class,
         "confidence": confidence,
-        "uncertain": confidence < UNCERTAIN_THRESHOLD,
+        "uncertain": uncertain,
+        "uncertainty_reason": uncertainty_reason,
         "heatmap_base64": overlay_b64,
     }
+
+
+@app.get("/stats")
+def stats():
+    """Aggregated prediction statistics for the dashboard."""
+    return compute_stats()
+
+
+@app.get("/dashboard")
+def serve_dashboard():
+    return FileResponse(os.path.join(STATIC_DIR, "dashboard.html"))

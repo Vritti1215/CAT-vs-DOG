@@ -1,64 +1,101 @@
-const dropzone = document.getElementById('dropzone');
-const fileInput = document.getElementById('fileInput');
-const startCamBtn = document.getElementById('startCam');
-const snapBtn = document.getElementById('snap');
+/* ── Theme ───────────────────────────────────────────────── */
+const html = document.documentElement;
+const themeToggle = document.getElementById('themeToggle');
+
+function applyTheme(dark) {
+  html.classList.toggle('dark', dark);
+  themeToggle.textContent = dark ? '☀️' : '🌙';
+  localStorage.setItem('theme', dark ? 'dark' : 'light');
+}
+
+// Load saved theme
+applyTheme(localStorage.getItem('theme') === 'dark');
+themeToggle.onclick = () => applyTheme(!html.classList.contains('dark'));
+
+/* ── Animal facts data ───────────────────────────────────── */
+const ANIMAL_FACTS = {
+  cat: [
+    { icon: '👁️', label: 'Pupils',      value: 'Vertical slit — precise depth vision' },
+    { icon: '🐾', label: 'Claws',       value: 'Fully retractable for stealth' },
+    { icon: '💤', label: 'Sleep',       value: '12–16 hours per day' },
+    { icon: '⚖️', label: 'Weight',      value: '3.5–5 kg on average' },
+    { icon: '🔊', label: 'Sounds',      value: 'Purr, meow, hiss, chirp' },
+    { icon: '🌡️', label: 'Body temp',   value: '38–39.2 °C (100.4–102.6 °F)' },
+    { icon: '🦷', label: 'Teeth',       value: '30 teeth — obligate carnivore' },
+    { icon: '📅', label: 'Lifespan',    value: '12–18 years (domestic)' },
+  ],
+  dog: [
+    { icon: '👁️', label: 'Pupils',      value: 'Round — wide field of view' },
+    { icon: '🐾', label: 'Claws',       value: 'Non-retractable, for traction' },
+    { icon: '💤', label: 'Sleep',       value: '12–14 hours per day' },
+    { icon: '⚖️', label: 'Weight',      value: '2–90 kg (varies by breed)' },
+    { icon: '🔊', label: 'Sounds',      value: 'Bark, howl, whine, growl' },
+    { icon: '👃', label: 'Smell',       value: '100,000× stronger than humans' },
+    { icon: '🦷', label: 'Teeth',       value: '42 teeth — bone-crushing bite' },
+    { icon: '📅', label: 'Lifespan',    value: '10–13 years (varies by size)' },
+  ],
+};
+
+/* ── DOM refs ────────────────────────────────────────────── */
+const dropzone     = document.getElementById('dropzone');
+const fileInput    = document.getElementById('fileInput');
+const startCamBtn  = document.getElementById('startCam');
+const snapBtn      = document.getElementById('snap');
 const cancelCamBtn = document.getElementById('cancelCam');
-const video = document.getElementById('video');
-const canvas = document.getElementById('canvas');
-const previewRow = document.getElementById('previewRow');
-const previewImg = document.getElementById('previewImg');
-const fnameEl = document.getElementById('fname');
-const statusEl = document.getElementById('status');
-const resultEl = document.getElementById('result');
-const verdictEl = document.getElementById('verdict');
+const video        = document.getElementById('video');
+const canvas       = document.getElementById('canvas');
+const previewRow   = document.getElementById('previewRow');
+const previewImg   = document.getElementById('previewImg');
+const fnameEl      = document.getElementById('fname');
+const statusEl     = document.getElementById('status');
+const resultEl     = document.getElementById('result');
+const verdictEl    = document.getElementById('verdict');
 const confidenceEl = document.getElementById('confidence');
-const uncertainNote = document.getElementById('uncertainNote');
-const errorMsg = document.getElementById('errorMsg');
-const meterFill = document.getElementById('meterFill');
-const meterKnot = document.getElementById('meterKnot');
-const heatmapBtn = document.getElementById('heatmapBtn');
-const heatmapWrap = document.getElementById('heatmapWrap');
-const heatmapImg = document.getElementById('heatmapImg');
+const uncertainBox = document.getElementById('uncertainBox');
+const uncertainBody= document.getElementById('uncertainBody');
+const factsPanel   = document.getElementById('factsPanel');
+const factsTitle   = document.getElementById('factsTitle');
+const factsGrid    = document.getElementById('factsGrid');
+const heatmapBtn   = document.getElementById('heatmapBtn');
+const heatmapWrap  = document.getElementById('heatmapWrap');
+const heatmapImg   = document.getElementById('heatmapImg');
+const errorMsg     = document.getElementById('errorMsg');
+const meterFill    = document.getElementById('meterFill');
+const meterKnot    = document.getElementById('meterKnot');
 const historyShell = document.getElementById('historyShell');
 const historyStrip = document.getElementById('historyStrip');
-const batchGrid = document.getElementById('batchGrid');
+const batchGrid    = document.getElementById('batchGrid');
 
 let stream = null;
-let currentFile = null;       // file currently shown in single-result view
-const history = [];           // { thumbUrl, cls, confidence }
-const MAX_HISTORY = 14;
+let currentFile = null;
+const historyItems = [];
 
-/* ---------- meter ---------- */
+/* ── Meter ───────────────────────────────────────────────── */
 function resetMeter() {
   meterFill.style.width = '50%';
-  meterKnot.style.left = '50%';
+  meterKnot.style.left  = '50%';
 }
 function setMeter(catProb, dogProb) {
-  const dogPct = dogProb * 100;
-  meterFill.style.width = dogPct + '%';
-  meterKnot.style.left = dogPct + '%';
+  const pct = dogProb * 100;
+  meterFill.style.width = pct + '%';
+  meterKnot.style.left  = pct + '%';
 }
 
-/* ---------- file intake ---------- */
+/* ── Drag/drop ───────────────────────────────────────────── */
 dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
 dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
 dropzone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropzone.classList.remove('drag');
+  e.preventDefault(); dropzone.classList.remove('drag');
   handleFiles(Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/')));
 });
-
-fileInput.onchange = () => {
-  handleFiles(Array.from(fileInput.files));
-  fileInput.value = ''; // allow re-selecting the same file later
-};
+fileInput.onchange = () => { handleFiles(Array.from(fileInput.files)); fileInput.value = ''; };
 
 function handleFiles(files) {
   if (!files.length) return;
   if (files.length === 1) {
     batchGrid.style.display = 'none';
     batchGrid.innerHTML = '';
-    handleSingleFile(files[0]);
+    handleSingle(files[0]);
   } else {
     resultEl.style.display = 'none';
     previewRow.style.display = 'none';
@@ -66,177 +103,181 @@ function handleFiles(files) {
   }
 }
 
-/* ---------- camera ---------- */
+/* ── Camera ──────────────────────────────────────────────── */
 startCamBtn.onclick = async () => {
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-  } catch {
-    stream = await navigator.mediaDevices.getUserMedia({ video: true });
-  }
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); }
+  catch { stream = await navigator.mediaDevices.getUserMedia({ video: true }); }
   video.srcObject = stream;
   video.style.display = 'block';
   snapBtn.style.display = 'inline-block';
   cancelCamBtn.style.display = 'inline-block';
   startCamBtn.style.display = 'none';
 };
-
-cancelCamBtn.onclick = () => stopCamera();
-
-function stopCamera() {
+cancelCamBtn.onclick = stopCam;
+function stopCam() {
   if (stream) stream.getTracks().forEach(t => t.stop());
-  video.style.display = 'none';
-  snapBtn.style.display = 'none';
-  cancelCamBtn.style.display = 'none';
+  video.style.display = snapBtn.style.display = cancelCamBtn.style.display = 'none';
   startCamBtn.style.display = 'inline-block';
 }
-
 snapBtn.onclick = () => {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   canvas.getContext('2d').drawImage(video, 0, 0);
-  canvas.toBlob(blob => {
-    handleSingleFile(new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' }));
-  }, 'image/jpeg', 0.92);
-  stopCamera();
+  canvas.toBlob(blob => handleSingle(new File([blob], 'photo.jpg', { type: 'image/jpeg' })), 'image/jpeg', 0.92);
+  stopCam();
 };
 
-/* ---------- single-file flow ---------- */
-function handleSingleFile(file) {
+/* ── Single file flow ────────────────────────────────────── */
+function handleSingle(file) {
   currentFile = file;
   errorMsg.style.display = 'none';
   resultEl.style.display = 'none';
-  uncertainNote.style.display = 'none';
+  uncertainBox.style.display = 'none';
+  factsPanel.style.display = 'none';
   heatmapWrap.style.display = 'none';
-  heatmapImg.src = '';
-  heatmapBtn.textContent = 'Show what the model focused on';
+  heatmapBtn.textContent = '🔍 Show what the model focused on';
   previewRow.style.display = 'flex';
   previewImg.src = URL.createObjectURL(file);
   fnameEl.textContent = file.name;
   statusEl.textContent = 'Classifying…';
   resetMeter();
-  sendImage(file);
+  classify(file);
 }
 
-async function sendImage(file) {
-  const formData = new FormData();
-  formData.append('file', file);
-
+async function classify(file) {
+  const fd = new FormData();
+  fd.append('file', file);
   try {
-    const res = await fetch('/predict', { method: 'POST', body: formData });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `Server error (${res.status})`);
-    }
+    const res = await fetch('/predict', { method: 'POST', body: fd });
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || `Error ${res.status}`); }
     const data = await res.json();
+    showResult(data, previewImg.src);
     statusEl.textContent = 'Done';
-
-    const catProb = data.probabilities?.cat ?? (data.class === 'cat' ? data.confidence : 1 - data.confidence);
-    const dogProb = data.probabilities?.dog ?? (data.class === 'dog' ? data.confidence : 1 - data.confidence);
-    setMeter(catProb, dogProb);
-
-    resultEl.style.display = 'block';
-    resultEl.classList.remove('cat', 'dog');
-    resultEl.classList.add(data.class);
-    verdictEl.textContent = data.class === 'cat' ? '🐱 It\'s a cat' : '🐶 It\'s a dog';
-    verdictEl.className = 'verdict ' + data.class;
-    confidenceEl.innerHTML = `<b>${(data.confidence * 100).toFixed(1)}%</b> confidence`;
-    uncertainNote.style.display = data.uncertain ? 'inline-block' : 'none';
-
-    addToHistory(previewImg.src, data.class, data.confidence);
-  } catch (e) {
+  } catch(e) {
     statusEl.textContent = 'Failed';
     errorMsg.style.display = 'block';
-    errorMsg.textContent = e.message || 'Could not reach the classifier.';
+    errorMsg.textContent = e.message || 'Server not reachable.';
   }
 }
 
-/* ---------- Grad-CAM ---------- */
-heatmapBtn.onclick = async () => {
-  if (!currentFile) return;
+/* ── Show result ─────────────────────────────────────────── */
+function showResult(data, thumbUrl) {
+  const catProb = data.probabilities?.cat ?? (data.class === 'cat' ? data.confidence : 1 - data.confidence);
+  const dogProb = data.probabilities?.dog ?? (data.class === 'dog' ? data.confidence : 1 - data.confidence);
+  setMeter(catProb, dogProb);
 
-  if (heatmapWrap.style.display === 'block') {
-    heatmapWrap.style.display = 'none';
-    heatmapBtn.textContent = 'Show what the model focused on';
-    return;
+  resultEl.style.display = 'block';
+
+  if (data.uncertain) {
+    // Don't commit to a verdict — show a clear "probably not a cat/dog" message
+    verdictEl.textContent = '🤷 Not sure…';
+    verdictEl.className = 'verdict uncertain-verdict';
+    confidenceEl.innerHTML = `Best guess: <b>${data.class}</b> at <b>${(data.confidence * 100).toFixed(1)}%</b> — below confidence threshold`;
+
+    uncertainBox.style.display = 'block';
+    const reasons = {
+      high_entropy: "The model's probability is nearly equally split between cat and dog — a sign the image may not contain either.",
+      low_confidence: "The model's confidence is below 75%. This image may show a different animal, object, or unclear scene.",
+      confident: '',
+    };
+    uncertainBody.textContent = reasons[data.uncertainty_reason] || reasons.low_confidence;
+    factsPanel.style.display = 'none';
+  } else {
+    // Confident prediction
+    verdictEl.textContent = data.class === 'cat' ? '🐱 It\'s a cat!' : '🐶 It\'s a dog!';
+    verdictEl.className = 'verdict ' + data.class;
+    confidenceEl.innerHTML = `Confidence: <b>${(data.confidence * 100).toFixed(1)}%</b>`;
+    uncertainBox.style.display = 'none';
+    showFacts(data.class);
   }
 
-  heatmapBtn.textContent = 'Loading heatmap…';
+  addToHistory(thumbUrl, data.class, data.confidence, data.uncertain);
+}
+
+/* ── Animal facts ────────────────────────────────────────── */
+function showFacts(cls) {
+  factsTitle.textContent = cls === 'cat' ? '🐱 Cat characteristics' : '🐶 Dog characteristics';
+  factsGrid.innerHTML = ANIMAL_FACTS[cls].map(f => `
+    <div class="fact-chip">
+      <div class="fc-icon">${f.icon}</div>
+      <div class="fc-label">${f.label}</div>
+      <div class="fc-value">${f.value}</div>
+    </div>
+  `).join('');
+  factsPanel.style.display = 'block';
+}
+
+/* ── Grad-CAM ────────────────────────────────────────────── */
+heatmapBtn.onclick = async () => {
+  if (!currentFile) return;
+  if (heatmapWrap.style.display === 'block') {
+    heatmapWrap.style.display = 'none';
+    heatmapBtn.textContent = '🔍 Show what the model focused on';
+    return;
+  }
+  heatmapBtn.textContent = 'Generating…';
   heatmapBtn.disabled = true;
-
-  const formData = new FormData();
-  formData.append('file', currentFile);
-
+  const fd = new FormData();
+  fd.append('file', currentFile);
   try {
-    const res = await fetch('/predict-gradcam', { method: 'POST', body: formData });
-    if (!res.ok) throw new Error('Could not generate heatmap.');
+    const res = await fetch('/predict-gradcam', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('Heatmap failed');
     const data = await res.json();
     heatmapImg.src = `data:image/png;base64,${data.heatmap_base64}`;
     heatmapWrap.style.display = 'block';
-    heatmapBtn.textContent = 'Hide heatmap';
-  } catch (e) {
+    heatmapBtn.textContent = '🔍 Hide heatmap';
+  } catch(e) {
     errorMsg.style.display = 'block';
     errorMsg.textContent = e.message;
-    heatmapBtn.textContent = 'Show what the model focused on';
-  } finally {
-    heatmapBtn.disabled = false;
-  }
+    heatmapBtn.textContent = '🔍 Show what the model focused on';
+  } finally { heatmapBtn.disabled = false; }
 };
 
-/* ---------- history gallery ---------- */
-function addToHistory(thumbUrl, cls, confidence) {
-  history.unshift({ thumbUrl, cls, confidence });
-  if (history.length > MAX_HISTORY) history.pop();
+/* ── History ─────────────────────────────────────────────── */
+function addToHistory(url, cls, conf, uncertain) {
+  historyItems.unshift({ url, cls, conf, uncertain });
+  if (historyItems.length > 14) historyItems.pop();
   renderHistory();
 }
-
 function renderHistory() {
-  if (!history.length) {
-    historyShell.style.display = 'none';
-    return;
-  }
+  if (!historyItems.length) { historyShell.style.display = 'none'; return; }
   historyShell.style.display = 'block';
-  historyStrip.innerHTML = '';
-  history.forEach(item => {
-    const div = document.createElement('div');
-    div.className = `history-item ${item.cls}`;
-    div.innerHTML = `
-      <img src="${item.thumbUrl}" alt="${item.cls}">
-      <div class="h-label">${item.cls === 'cat' ? '🐱' : '🐶'} ${(item.confidence * 100).toFixed(0)}%</div>
-    `;
-    historyStrip.appendChild(div);
-  });
+  historyStrip.innerHTML = historyItems.map(h => `
+    <div class="history-item ${h.uncertain ? '' : h.cls}">
+      <img src="${h.url}" alt="${h.cls}">
+      <div class="h-label">${h.uncertain ? '🤷' : h.cls === 'cat' ? '🐱' : '🐶'} ${(h.conf * 100).toFixed(0)}%</div>
+    </div>
+  `).join('');
 }
 
-/* ---------- batch upload ---------- */
+/* ── Batch ───────────────────────────────────────────────── */
 async function handleBatch(files) {
   batchGrid.style.display = 'grid';
   batchGrid.innerHTML = '';
-
   const cards = files.map(file => {
     const card = document.createElement('div');
     card.className = 'batch-card pending';
     const url = URL.createObjectURL(file);
-    card.innerHTML = `
-      <img src="${url}" alt="${file.name}">
-      <div class="b-label">…</div>
-      <div class="b-conf"></div>
-    `;
+    card.innerHTML = `<img src="${url}"><div class="b-label">…</div><div class="b-conf"></div>`;
     batchGrid.appendChild(card);
     return { file, card, url };
   });
-
   for (const { file, card, url } of cards) {
-    const formData = new FormData();
-    formData.append('file', file);
+    const fd = new FormData(); fd.append('file', file);
     try {
-      const res = await fetch('/predict', { method: 'POST', body: formData });
+      const res = await fetch('/predict', { method: 'POST', body: fd });
       if (!res.ok) throw new Error();
       const data = await res.json();
       card.classList.remove('pending');
-      card.classList.add(data.class);
-      card.querySelector('.b-label').textContent = data.class === 'cat' ? '🐱 Cat' : '🐶 Dog';
-      card.querySelector('.b-conf').textContent = `${(data.confidence * 100).toFixed(1)}%${data.uncertain ? ' · unsure' : ''}`;
-      addToHistory(url, data.class, data.confidence);
+      if (data.uncertain) {
+        card.querySelector('.b-label').textContent = '🤷 Unsure';
+        card.querySelector('.b-conf').textContent = `${(data.confidence * 100).toFixed(1)}%`;
+      } else {
+        card.classList.add(data.class);
+        card.querySelector('.b-label').textContent = data.class === 'cat' ? '🐱 Cat' : '🐶 Dog';
+        card.querySelector('.b-conf').textContent = `${(data.confidence * 100).toFixed(1)}%`;
+      }
+      addToHistory(url, data.class, data.confidence, data.uncertain);
     } catch {
       card.classList.remove('pending');
       card.querySelector('.b-label').textContent = 'Error';

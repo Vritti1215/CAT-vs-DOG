@@ -1,0 +1,11 @@
+{"timestamp": "2026-07-01T10:55:23.436258+00:00", "class": "cat", "confidence": 0.6066, "uncertain": false, "source": "predict"}
+{"timestamp": "2026-07-01T10:55:29.891298+00:00", "class": "dog", "confidence": 1.0, "uncertain": false, "source": "predict"}
+{"timestamp": "2026-07-01T11:26:36.396603+00:00", "class": "cat", "confidence": 0.6317, "uncertain": true, "source": "predict"}
+{"timestamp": "2026-07-01T11:26:49.204848+00:00", "class": "cat", "confidence": 0.6317, "uncertain": true, "source": "predict-gradcam"}
+{"timestamp": "2026-07-01T11:32:19.514880+00:00", "class": "cat", "confidence": 1.0, "uncertain": false, "source": "predict"}
+{"timestamp": "2026-07-01T11:32:39.985814+00:00", "class": "cat", "confidence": 1.0, "uncertain": false, "source": "predict-gradcam"}
+{"timestamp": "2026-07-01T12:19:12.703622+00:00", "class": "cat", "confidence": 0.6382, "uncertain": true, "source": "predict"}
+{"timestamp": "2026-07-01T12:19:28.843234+00:00", "class": "cat", "confidence": 0.9685, "uncertain": false, "source": "predict"}
+{"timestamp": "2026-07-01T12:19:37.551775+00:00", "class": "cat", "confidence": 0.9685, "uncertain": false, "source": "predict-gradcam"}
+{"timestamp": "2026-07-01T12:41:38.768988+00:00", "class": "cat", "confidence": 0.6076, "uncertain": true, "source": "predict"}
+{"timestamp": "2026-07-01T12:41:44.899071+00:00", "class": "cat", "confidence": 0.6076, "uncertain": true, "source": "predict-gradcam"}

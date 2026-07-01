@@ -5,19 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cat or Dog?</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-
 <div class="wrap">
+
+  <div class="topbar">
+    <div class="topbar-links">
+      <a href="/dashboard">📊 Dashboard</a>
+    </div>
+    <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">🌙</button>
+  </div>
+
   <header>
     <div class="eyebrow">Computer Vision Demo</div>
     <h1><span class="cat-word">Cat</span><span class="vs">vs</span><span class="dog-word">Dog</span></h1>
-    <p class="sub">Upload a photo or snap one — the model decides which side wins.</p>
-    <a href="/dashboard" class="dash-link">📊 View dashboard</a>
+    <p class="sub">Upload a photo — the model tells you which side wins.</p>
   </header>
 
+  <!-- Tug-of-war meter -->
   <div class="meter-shell">
     <div class="meter-labels">
       <span class="cat-label">🐱 CAT</span>
@@ -26,14 +33,17 @@
     <div class="meter-track">
       <div class="meter-fill" id="meterFill"></div>
     </div>
-    <div class="meter-track" style="position:relative; margin-top:-14px; background:transparent; opacity:1;">
+    <div class="meter-track" style="position:relative;margin-top:-12px;background:transparent;opacity:1">
       <div class="meter-knot" id="meterKnot"></div>
     </div>
   </div>
 
   <div class="card">
+    <!-- Dropzone -->
     <div class="dropzone" id="dropzone">
-      <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12M12 16.5V3"/></svg>
+      <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12M12 16.5V3"/>
+      </svg>
       <p><strong>Click to upload</strong> or drag photo(s) here</p>
       <input type="file" id="fileInput" accept="image/*" multiple>
     </div>
@@ -42,40 +52,57 @@
 
     <div class="cam-row">
       <button id="startCam" class="secondary">Use camera</button>
-      <button id="snap" style="display:none;">Take photo</button>
-      <button id="cancelCam" class="secondary" style="display:none;">Cancel</button>
+      <button id="snap" style="display:none">Take photo</button>
+      <button id="cancelCam" class="secondary" style="display:none">Cancel</button>
     </div>
 
     <video id="video" autoplay playsinline></video>
     <canvas id="canvas"></canvas>
 
+    <!-- Preview -->
     <div class="preview-row" id="previewRow">
       <img id="previewImg" alt="Preview">
       <div class="preview-meta">
-        <div class="fname" id="fname">photo.jpg</div>
+        <div class="fname" id="fname"></div>
         <div class="status" id="status">Classifying…</div>
       </div>
     </div>
 
+    <!-- Result -->
     <div class="result" id="result">
       <div class="verdict" id="verdict">—</div>
       <div class="confidence" id="confidence"></div>
-      <div class="uncertain-note" id="uncertainNote" style="display:none;">
-        🤔 Not very confident — this might not be a clear cat or dog photo.
+
+      <!-- Uncertain warning box -->
+      <div class="uncertain-box" id="uncertainBox">
+        <div class="ub-title">⚠️ Low confidence — this might not be a cat or dog</div>
+        <div class="ub-body" id="uncertainBody">
+          The model is not confident about this image. It may be a different animal, object, or unclear photo.
+        </div>
       </div>
-      <button id="heatmapBtn" class="secondary heatmap-btn">Show what the model focused on</button>
-      <div class="heatmap-wrap" id="heatmapWrap" style="display:none;">
-        <img id="heatmapImg" alt="Grad-CAM heatmap">
-        <p class="heatmap-caption">Red/yellow = regions that most influenced the decision</p>
+
+      <!-- Animal facts -->
+      <div class="facts-panel" id="factsPanel">
+        <div class="facts-header">
+          <div class="facts-title" id="factsTitle">Cat characteristics</div>
+        </div>
+        <div class="facts-grid" id="factsGrid"></div>
+      </div>
+
+      <!-- Grad-CAM -->
+      <button class="heatmap-btn secondary" id="heatmapBtn">🔍 Show what the model focused on</button>
+      <div class="heatmap-wrap" id="heatmapWrap">
+        <img id="heatmapImg" alt="Grad-CAM">
+        <div class="heatmap-caption">Red = high attention · Blue = low attention</div>
       </div>
     </div>
 
     <div class="error-msg" id="errorMsg"></div>
-
     <div class="batch-grid" id="batchGrid"></div>
   </div>
 
-  <div class="history-shell" id="historyShell" style="display:none;">
+  <!-- History -->
+  <div class="history-shell" id="historyShell" style="display:none">
     <div class="history-label">Recent</div>
     <div class="history-strip" id="historyStrip"></div>
   </div>
@@ -84,6 +111,5 @@
 </div>
 
 <script src="/static/js/app.js"></script>
-
 </body>
 </html>
