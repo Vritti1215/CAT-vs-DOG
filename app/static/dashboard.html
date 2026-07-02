@@ -3,181 +3,195 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard — Cat vs Dog</title>
+<title>Dashboard · Cat vs Dog</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link rel="stylesheet" href="/static/css/style.css">
 <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
-<body>
+<body class="page-dash">
 
-<!-- ── Sidebar ── -->
+<!-- Sidebar -->
 <aside class="sidebar">
-  <div class="sidebar-top">
-    <a href="/" class="back-link">
-      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/>
-      </svg>
-      Classifier
-    </a>
-    <div class="sidebar-brand">
-      <div class="brand-dot"></div>
-      Dashboard
+  <div class="sb-logo">
+    <div class="sb-logo-dot"></div>
+    <span class="sb-logo-name">CatDog</span>
+    <span class="sb-logo-tag">LOCAL</span>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Navigation</div>
+    <a href="/"          class="sb-link">← Classifier</a>
+    <a href="#overview"  class="sb-link active" id="nav-overview">Overview</a>
+    <a href="#charts"    class="sb-link" id="nav-charts">Charts</a>
+    <a href="#log"       class="sb-link" id="nav-log">Prediction log</a>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Live stats</div>
+    <div class="sb-stat">
+      <div class="sb-stat-row">
+        <span class="sb-stat-label">Total</span>
+        <span class="sb-stat-value" id="sb-total">—</span>
+      </div>
+      <div class="sb-stat-row">
+        <span class="sb-stat-label">Avg confidence</span>
+        <span class="sb-stat-value" id="sb-conf">—</span>
+      </div>
+      <div class="sb-stat-row">
+        <span class="sb-stat-label">Uncertain rate</span>
+        <span class="sb-stat-value" id="sb-uncertain">—</span>
+      </div>
     </div>
   </div>
 
-  <nav class="sidebar-nav">
-    <a href="#overview"      class="nav-item active">📊 Overview</a>
-    <a href="#distribution"  class="nav-item">📈 Distribution</a>
-    <a href="#confidence"    class="nav-item">🎯 Confidence</a>
-    <a href="#breakdown"     class="nav-item">🥧 Class split</a>
-    <a href="#log"           class="nav-item">📋 Recent log</a>
-  </nav>
-
-  <div class="sidebar-bottom">
-    <div class="mini-stat">
-      <span class="mini-label">Total</span>
-      <span class="mini-value" id="sTotal">—</span>
-    </div>
-    <div class="mini-stat">
-      <span class="mini-label">Avg conf</span>
-      <span class="mini-value" id="sAvg">—</span>
-    </div>
-    <div class="mini-stat">
-      <span class="mini-label">Uncertain</span>
-      <span class="mini-value warn" id="sUncertain">—</span>
-    </div>
-    <div class="sidebar-actions">
-      <button class="sidebar-btn" id="refreshBtn">↻ Refresh data</button>
-      <button class="sidebar-btn" id="themeToggle">🌙 Toggle theme</button>
-    </div>
+  <div class="sb-bottom">
+    <button class="btn btn-ghost" id="refreshBtn">↻ Refresh</button>
+    <button class="btn btn-ghost" id="themeBtn">Dark mode</button>
   </div>
 </aside>
 
-<!-- ── Main ── -->
+<!-- Main -->
 <main class="dash-main">
 
-  <header class="dash-header">
-    <div class="dash-header-left">
-      <div class="dash-eyebrow">Model Telemetry</div>
-      <h1 class="dash-title">Prediction Dashboard</h1>
-    </div>
-    <div class="header-right">
-      <div class="header-badge" id="lastUpdated">—</div>
-    </div>
-  </header>
-
-  <!-- Section: Overview KPIs -->
-  <div id="overview">
-    <div class="section-title">Overview</div>
-    <div class="kpi-row">
-      <div class="kpi-card">
-        <div class="kpi-icon" style="background:rgba(61,110,140,.1);font-size:20px">📊</div>
-        <div>
-          <div class="kpi-label">Total predictions</div>
-          <div class="kpi-value" id="kTotal">0</div>
-        </div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-icon" style="background:rgba(217,123,63,.1);font-size:20px">🐱</div>
-        <div>
-          <div class="kpi-label">Cats detected</div>
-          <div class="kpi-value cat" id="kCats">0</div>
-        </div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-icon" style="background:rgba(61,110,140,.1);font-size:20px">🐶</div>
-        <div>
-          <div class="kpi-label">Dogs detected</div>
-          <div class="kpi-value dog" id="kDogs">0</div>
-        </div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-icon" style="background:rgba(153,122,0,.1);font-size:20px">⚠️</div>
-        <div>
-          <div class="kpi-label">Uncertain / low-conf</div>
-          <div class="kpi-value warn" id="kUncertain">0</div>
-        </div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-icon" style="background:rgba(39,103,73,.1);font-size:20px">✅</div>
-        <div>
-          <div class="kpi-label">Avg confidence</div>
-          <div class="kpi-value good" id="kConf">—</div>
-        </div>
-      </div>
+  <div class="dash-topbar">
+    <span class="dash-title-sm">Prediction Dashboard</span>
+    <div class="dash-topbar-right">
+      <span class="dash-timestamp" id="lastUpdated">—</span>
     </div>
   </div>
 
-  <!-- Section: Distribution -->
-  <div id="distribution">
-    <div class="section-title">Confidence distribution</div>
-    <div class="chart-card">
-      <div class="chart-head">
-        <div class="chart-title">How confident was the model? (all predictions)</div>
-        <div class="chart-sub">Each bar shows how many predictions fell in that confidence range. A good model clusters toward the right (high confidence).</div>
-      </div>
-      <div class="chart-body-md">
-        <canvas id="histChart"></canvas>
+  <div class="dash-body">
+
+    <div class="page-heading">
+      <h1>Overview</h1>
+      <p>Real-time telemetry from every prediction made in this session.</p>
+    </div>
+
+    <!-- KPI strip -->
+    <div class="dash-section" id="overview">
+      <div class="kpi-strip">
+        <div class="kpi-cell">
+          <div class="kpi-cell-label">Total predictions</div>
+          <div class="kpi-cell-value" id="kTotal">0</div>
+        </div>
+        <div class="kpi-cell">
+          <div class="kpi-cell-label">Cats detected</div>
+          <div class="kpi-cell-value cat" id="kCats">0</div>
+        </div>
+        <div class="kpi-cell">
+          <div class="kpi-cell-label">Dogs detected</div>
+          <div class="kpi-cell-value dog" id="kDogs">0</div>
+        </div>
+        <div class="kpi-cell">
+          <div class="kpi-cell-label">Uncertain / low-conf</div>
+          <div class="kpi-cell-value warn" id="kUncertain">0</div>
+        </div>
+        <div class="kpi-cell">
+          <div class="kpi-cell-label">Avg confidence</div>
+          <div class="kpi-cell-value good" id="kConf">—</div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Section: Per-class confidence + donut side by side -->
-  <div id="confidence">
-    <div class="section-title">Confidence by class</div>
-    <div class="charts-2col">
+    <!-- Charts -->
+    <div class="dash-section" id="charts">
+      <div class="dash-section-header">
+        <div>
+          <div class="dash-section-title">Distribution</div>
+          <div class="dash-section-sub">Confidence histogram and class breakdown</div>
+        </div>
+      </div>
+
+      <div class="chart-grid-3" style="margin-bottom:14px">
+
+        <!-- Histogram -->
+        <div class="chart-card">
+          <div class="chart-card-head">
+            <div class="chart-card-title">Confidence distribution</div>
+            <div class="chart-card-sub">Predictions binned by confidence score</div>
+          </div>
+          <div class="chart-card-body chart-h-lg">
+            <canvas id="histChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Donut -->
+        <div class="chart-card">
+          <div class="chart-card-head">
+            <div class="chart-card-title">Class split</div>
+            <div class="chart-card-sub">Cat vs Dog proportion</div>
+          </div>
+          <div class="chart-card-body chart-h-lg donut-wrap">
+            <canvas id="donutChart"></canvas>
+            <div class="donut-center">
+              <div class="donut-center-big"  id="donutPct">—</div>
+              <div class="donut-center-small">cat ratio</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Avg conf per class -->
+        <div class="chart-card">
+          <div class="chart-card-head">
+            <div class="chart-card-title">Avg confidence</div>
+            <div class="chart-card-sub">By class and overall</div>
+          </div>
+          <div class="chart-card-body chart-h-md" style="display:flex;flex-direction:column;justify-content:center">
+            <div class="stat-rows">
+              <div class="stat-row">
+                <span class="stat-row-label">Cat</span>
+                <span class="stat-row-value text-cat" id="confCat">—</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-row-label">Dog</span>
+                <span class="stat-row-value text-dog" id="confDog">—</span>
+              </div>
+              <div class="stat-row" style="border-top:1px solid var(--border);padding-top:10px">
+                <span class="stat-row-label">Overall</span>
+                <span class="stat-row-value" id="confAll">—</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-row-label">Uncertain rate</span>
+                <span class="stat-row-value text-warn" id="confUncertain">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prediction log -->
+    <div class="dash-section" id="log">
+      <div class="dash-section-header">
+        <div>
+          <div class="dash-section-title">Prediction log</div>
+          <div class="dash-section-sub">Last 20 classifications</div>
+        </div>
+      </div>
       <div class="chart-card">
-        <div class="chart-head">
-          <div class="chart-title">Average confidence — Cat vs Dog vs Overall</div>
-          <div class="chart-sub">If the model is more confident about one class, it learned those features better.</div>
-        </div>
-        <div class="chart-body-sm">
-          <canvas id="barChart"></canvas>
-        </div>
-      </div>
-      <div class="chart-card" id="breakdown">
-        <div class="chart-head">
-          <div class="chart-title">Class split</div>
-          <div class="chart-sub">Proportion of cats vs dogs classified so far.</div>
-        </div>
-        <div class="chart-body-donut">
-          <canvas id="donutChart"></canvas>
-          <div class="donut-center" id="donutCenter">—</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Section: Recent log -->
-  <div id="log">
-    <div class="section-title">Recent predictions</div>
-    <div class="table-card">
-      <div class="chart-head">
-        <div class="chart-title">Last 20 classifications</div>
-        <div class="chart-sub">Every image you classify on the main page gets logged here in real time.</div>
-      </div>
-      <div class="table-wrap">
-        <table class="pred-table">
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Class</th>
-              <th>Confidence</th>
-              <th>Source</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="logBody"></tbody>
-        </table>
-        <div class="empty-table" id="emptyLog">
-          No predictions yet — <a href="/" style="color:var(--cat-deep)">go classify some photos</a> and come back.
+        <div class="data-table-wrap" style="max-height:340px;overflow-y:auto">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Class</th>
+                <th>Confidence</th>
+                <th>Source</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="logBody"></tbody>
+          </table>
+          <div class="empty-state" id="emptyLog">
+            No predictions yet — <a href="/">go classify some images</a> and come back.
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
+  </div>
 </main>
 
 <script src="/static/js/dashboard.js"></script>

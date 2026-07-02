@@ -27,6 +27,7 @@ from dataset import eval_transforms  # noqa: E402
 from model import load_model_for_inference  # noqa: E402
 from grad_cam import generate_gradcam_overlay  # noqa: E402
 from prediction_logger import log_prediction, compute_stats  # noqa: E402
+from breed_detector import detect_breeds, analyze_image  # noqa: E402
 
 UNCERTAIN_THRESHOLD = 0.75  # below this confidence, flag as uncertain
 ENTROPY_THRESHOLD = 0.55    # normalized entropy above this = model is genuinely confused
@@ -161,6 +162,52 @@ async def predict_gradcam(file: UploadFile = File(...)):
         "uncertain": uncertain,
         "uncertainty_reason": uncertainty_reason,
         "heatmap_base64": overlay_b64,
+    }
+
+
+@app.post("/analyze")
+async def analyze(file: UploadFile = File(...)):
+    """
+    Full image analysis: cat/dog prediction + breed suggestions + image properties.
+    Combines /predict and breed detection into one round trip.
+    """
+    if model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded.")
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image.")
+    try:
+        contents = await file.read()
+        image = Image.open(io.BytesIO(contents)).convert("RGB")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not read image.")
+
+    # Cat/dog classification
+    tensor = eval_transforms(image).unsqueeze(0).to(DEVICE)
+    with torch.no_grad():
+        outputs = model(tensor)
+        probs   = torch.softmax(outputs, dim=1)[0]
+        pred_idx = probs.argmax().item()
+
+    pred_class = CLASS_NAMES[pred_idx]
+    confidence = round(probs[pred_idx].item(), 4)
+    uncertain, uncertainty_reason = is_uncertain(probs)
+
+    log_prediction(pred_class, confidence, uncertain, source="analyze")
+
+    # Breed detection (uses pretrained ImageNet weights, no extra training)
+    breeds = [] if uncertain else detect_breeds(image, pred_class, device=DEVICE)
+
+    # Image property analysis
+    img_props = analyze_image(image)
+
+    return {
+        "class":              pred_class,
+        "confidence":         confidence,
+        "probabilities":      {CLASS_NAMES[i]: round(p.item(), 4) for i, p in enumerate(probs)},
+        "uncertain":          uncertain,
+        "uncertainty_reason": uncertainty_reason,
+        "breeds":             breeds,
+        "image_properties":   img_props,
     }
 
 

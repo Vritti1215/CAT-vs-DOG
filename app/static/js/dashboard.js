@@ -1,221 +1,196 @@
-
+/* ── Theme ─────────────────────────────────────────────────────── */
 const html = document.documentElement;
-const themeToggle = document.getElementById('themeToggle');
+const themeBtn = document.getElementById('themeBtn');
 
 function applyTheme(dark) {
   html.classList.toggle('dark', dark);
-  html.classList.toggle('light', !dark);
-  themeToggle.textContent = dark ? '☀️ Light Mode' : '🌙 Dark Mode';
-  localStorage.setItem('theme', dark ? 'dark' : 'light');
-  refreshChartThemeProfiles();
+  themeBtn.textContent = dark ? 'Light mode' : 'Dark mode';
+  localStorage.setItem('catdog-theme', dark ? 'dark' : 'light');
+  if (histChart) refreshChartTheme();
 }
+applyTheme(localStorage.getItem('catdog-theme') === 'dark');
+themeBtn.onclick = () => applyTheme(!html.classList.contains('dark'));
 
-applyTheme(localStorage.getItem('theme') !== 'light');
-themeToggle.onclick = () => applyTheme(!html.classList.contains('dark'));
-
-/* ---------- CHART COLOR FACTORY SETTINGS CONFIGURATIONS ---------- */
-function resolveDynamicThemeColors() {
-  const isDarkActive = html.classList.contains('dark');
+/* ── Chart.js helpers ──────────────────────────────────────────── */
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function getColors() {
   return {
-    gridColor: isDarkActive ? 'rgba(255,255,255,0.03)' : 'rgba(15, 23, 42, 0.05)',
-    tickColor: isDarkActive ? '#475569' : '#94a3b8',
-    labelColor: isDarkActive ? '#8c9bb2' : '#475569',
-    felineColor: isDarkActive ? '#f97316' : '#ea580c',
-    canineColor: isDarkActive ? '#38bdf8' : '#0284c7',
-    amberColor: '#fbbf24',
-    cardBackground: isDarkActive ? '#0a0d18' : '#ffffff'
+    border: cssVar('--border'),
+    muted:  cssVar('--muted'),
+    cat:    cssVar('--cat'),
+    dog:    cssVar('--dog'),
+    text:   cssVar('--text'),
+    bg:     cssVar('--surface'),
+    mono:   "'JetBrains Mono', monospace",
   };
 }
 
-let historicalHistogramChart = null;
-let cumulativeDonutChart = null;
+Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+Chart.defaults.font.size   = 11;
 
-/* ---------- INITIALIZE PERFORMANCE CHARTS DECK ---------- */
-function constructPerformanceCharts(statsPayload) {
-  const tokens = resolveDynamicThemeColors();
-  
-  // Chart 1: Confidence Distribution Density Bracket Histogram
-  const histogramCtx = document.getElementById('historicalHistogramChart').getContext('2d');
-  historicalHistogramChart = new Chart(histogramCtx, {
+let histChart  = null;
+let donutChart = null;
+
+function buildCharts() {
+  const c = getColors();
+
+  histChart = new Chart(document.getElementById('histChart'), {
     type: 'bar',
     data: {
-      labels: ['0-10%', '10-20%', '20-30%', '30-40%', '40-50%', '50-60%', '60-70%', '70-80%', '80-90%', '90-100%'],
+      labels: ['0–10','10–20','20–30','30–40','40–50','50–60','60–70','70–80','80–90','90–100'].map(l => l + '%'),
       datasets: [{
-        label: 'Prediction Output Frequency Count',
-        data: statsPayload.confidence_histogram || [0,0,0,0,0,0,0,0,0,0],
-        backgroundColor: tokens.canineColor,
-        borderRadius: 4,
-        barPercentage: 0.6
+        data: new Array(10).fill(0),
+        backgroundColor: Array.from({length:10}, (_, i) => i < 5 ? c.cat + '99' : c.dog + '99'),
+        borderRadius: 3,
+        borderSkipped: false,
       }]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
       scales: {
-        y: { grid: { color: tokens.gridColor }, ticks: { color: tokens.tickColor, font: { family: 'JetBrains Mono', size: 9 } } },
-        x: { grid: { display: false }, ticks: { color: tokens.tickColor, font: { family: 'JetBrains Mono', size: 9 } } }
-      },
-      plugins: { legend: { display: false } }
+        x: { grid: { display: false }, ticks: { color: c.muted, font: { size: 10 } } },
+        y: { beginAtZero: true, grid: { color: c.border }, border: { display: false }, ticks: { color: c.muted, font: { size: 10 }, precision: 0 } }
+      }
     }
   });
 
-  // Chart 2: Total Proportions Class Allocation Split
-  const donutCtx = document.getElementById('cumulativeDonutChart').getContext('2d');
-  cumulativeDonutChart = new Chart(donutCtx, {
+  donutChart = new Chart(document.getElementById('donutChart'), {
     type: 'doughnut',
     data: {
-      labels: ['Cats (Feline)', 'Dogs (Canine)', 'Uncertain Runs'],
+      labels: ['Cat', 'Dog'],
       datasets: [{
-        data: [
-          statsPayload.class_counts?.cat || 0,
-          statsPayload.class_counts?.dog || 0,
-          statsPayload.uncertain_count || 0
-        ],
-        backgroundColor: [tokens.felineColor, tokens.canineColor, tokens.amberColor],
-        borderColor: tokens.cardBackground,
-        borderWidth: 2
+        data: [0, 0],
+        backgroundColor: [c.cat, c.dog],
+        borderColor: c.bg,
+        borderWidth: 3,
+        hoverOffset: 3,
       }]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false, cutout: '72%',
       plugins: {
-        legend: { position: 'right', labels: { color: tokens.labelColor, font: { family: 'Plus Jakarta Sans', size: 10 }, boxWidth: 10 } }
-      },
-      cutout: '70%'
+        legend: { position: 'bottom', labels: { boxWidth: 8, boxHeight: 8, padding: 14, color: c.muted, font: { size: 11 } } }
+      }
     }
   });
 }
 
-/* ---------- REFRESH VISUALIZATION SYSTEM GRAPH THEMES ---------- */
-function refreshChartThemeProfiles() {
-  if (!historicalHistogramChart || !cumulativeDonutChart) return;
-  const tokens = resolveDynamicThemeColors();
-
-  // Reset histogram chart properties references
-  historicalHistogramChart.options.scales.y.grid.color = tokens.gridColor;
-  historicalHistogramChart.options.scales.y.ticks.color = tokens.tickColor;
-  historicalHistogramChart.options.scales.x.ticks.color = tokens.tickColor;
-  historicalHistogramChart.data.datasets[0].backgroundColor = tokens.canineColor;
-  historicalHistogramChart.update();
-
-  // Reset doughnut proportions chart color configurations
-  cumulativeDonutChart.options.plugins.legend.labels.color = tokens.labelColor;
-  cumulativeDonutChart.data.datasets[0].backgroundColor = [tokens.felineColor, tokens.canineColor, tokens.amberColor];
-  cumulativeDonutChart.data.datasets[0].borderColor = tokens.cardBackground;
-  cumulativeDonutChart.update();
+function refreshChartTheme() {
+  const c = getColors();
+  if (histChart) {
+    histChart.options.scales.x.ticks.color = c.muted;
+    histChart.options.scales.y.ticks.color = c.muted;
+    histChart.options.scales.y.grid.color  = c.border;
+    histChart.data.datasets[0].backgroundColor =
+      Array.from({length:10}, (_, i) => i < 5 ? c.cat + '99' : c.dog + '99');
+    histChart.update('none');
+  }
+  if (donutChart) {
+    donutChart.data.datasets[0].backgroundColor = [c.cat, c.dog];
+    donutChart.data.datasets[0].borderColor      = c.bg;
+    donutChart.options.plugins.legend.labels.color = c.muted;
+    donutChart.update('none');
+  }
 }
 
-/* ---------- COMPILE RETRIEVED TELEMETRY ARRAYS DATA ---------- */
-function renderExecutiveTelemMetrics(statsPayload) {
-  // Update numerical metrics representations securely
-  document.getElementById('statTotal').textContent = statsPayload.total_predictions || 0;
-  
-  const catAccuracyMagnitude = (statsPayload.avg_confidence?.cat || 0) * 100;
-  document.getElementById('statCatConf').textContent = catAccuracyMagnitude.toFixed(1) + '%';
-  
-  const dogAccuracyMagnitude = (statsPayload.avg_confidence?.dog || 0) * 100;
-  document.getElementById('statDogConf').textContent = dogAccuracyMagnitude.toFixed(1) + '%';
-  
-  const customUncertainRatePct = (statsPayload.uncertain_rate || 0) * 100;
-  document.getElementById('statUncertainRate').textContent = customUncertainRatePct.toFixed(1) + '%';
+/* ── Data loading ──────────────────────────────────────────────── */
+async function loadStats() {
+  try {
+    const res = await fetch('/stats');
+    if (!res.ok) throw new Error('stats failed');
+    const s = await res.json();
+    renderAll(s);
+  } catch(e) {
+    console.error('Dashboard:', e.message);
+  }
+}
 
-  // Populate row elements directly inside database logs tables body template
-  const targetBodyNode = document.getElementById('dashboardLogBody');
-  const emptyLogsStateNode = document.getElementById('dashboardEmptyLogState');
+function pct(v)  { return v != null ? `${(v * 100).toFixed(1)}%` : '—'; }
+function num(v)  { return (v ?? 0).toLocaleString(); }
 
-  if (!statsPayload.recent || statsPayload.recent.length === 0) {
-    emptyLogsStateNode.style.display = 'block';
-    targetBodyNode.innerHTML = '';
-    return;
+function renderAll(s) {
+  /* KPIs */
+  document.getElementById('kTotal').textContent    = num(s.total);
+  document.getElementById('kCats').textContent     = num(s.class_counts?.cat);
+  document.getElementById('kDogs').textContent     = num(s.class_counts?.dog);
+  document.getElementById('kUncertain').textContent= num(s.uncertain_count);
+  document.getElementById('kConf').textContent     = pct(s.avg_confidence?.overall);
+
+  /* Sidebar */
+  document.getElementById('sb-total').textContent    = num(s.total);
+  document.getElementById('sb-conf').textContent     = pct(s.avg_confidence?.overall);
+  document.getElementById('sb-uncertain').textContent= pct(s.uncertain_rate);
+
+  /* Avg conf stat rows */
+  document.getElementById('confCat').textContent     = pct(s.avg_confidence?.cat);
+  document.getElementById('confDog').textContent     = pct(s.avg_confidence?.dog);
+  document.getElementById('confAll').textContent     = pct(s.avg_confidence?.overall);
+  document.getElementById('confUncertain').textContent = pct(s.uncertain_rate);
+
+  /* Histogram */
+  if (histChart) {
+    histChart.data.datasets[0].data = s.confidence_histogram || new Array(10).fill(0);
+    histChart.update();
   }
 
-  emptyLogsStateNode.style.display = 'none';
-  targetBodyNode.innerHTML = statsPayload.recent.map(record => {
-    const rawInferenceTimeStr = new Date(record.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const computedAccuracyScore = (record.confidence * 100).toFixed(1);
-    
-    return `
-      <tr class="hover:bg-slate-900/5">
-        <td style="font-family:'JetBrains Mono'; color:#64748b; font-size:11px;">${rawInferenceTimeStr}</td>
-        <td>
-          <span class="pill-badge font-bold text-[10px] uppercase ${record.class === 'cat' ? 'text-orange-500 bg-orange-950/10' : 'text-cyan-400 bg-cyan-950/10'} px-2 py-0.5 rounded border border-slate-800">
-            ${record.class === 'cat' ? '🐱 Cat' : '🐶 Dog'}
-          </span>
-        </td>
-        <td>
-          <div class="progress-bar-flex-wrapper">
-            <div class="progress-track-bg">
-              <div class="progress-track-fill ${record.class}" style="width: ${computedAccuracyScore}%;"></div>
-            </div>
-            <span class="progress-numerical-lbl">${computedAccuracyScore}%</span>
-          </div>
-        </td>
-        <td style="font-family:'JetBrains Mono'; color:#64748b; font-size:11px;">/${record.source || 'predict'}</td>
-        <td>
-          <span class="pill-badge text-[9.5px] font-semibold ${record.uncertain ? 'text-amber-500 bg-amber-950/20 border-amber-800/30' : 'text-emerald-400 bg-emerald-950/20 border-emerald-800/30'} px-1.5 py-0.5 rounded border">
-            ${record.uncertain ? '⚠️ Ambiguous' : '✓ Validated'}
-          </span>
-        </td>
-      </tr>
-    `;
+  /* Donut */
+  if (donutChart && s.total > 0) {
+    donutChart.data.datasets[0].data = [s.class_counts?.cat ?? 0, s.class_counts?.dog ?? 0];
+    donutChart.update();
+    const catPct = Math.round((s.class_counts?.cat ?? 0) / s.total * 100);
+    document.getElementById('donutPct').textContent = catPct + '%';
+  }
+
+  /* Table */
+  renderTable(s.recent || []);
+
+  /* Timestamp */
+  document.getElementById('lastUpdated').textContent =
+    'Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById('logBody');
+  const empty = document.getElementById('emptyLog');
+  if (!rows.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = rows.map(r => {
+    const conf = (r.confidence * 100).toFixed(1);
+    const time = new Date(r.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    return `<tr>
+      <td class="t-mono t-xs text-muted">${time}</td>
+      <td><span class="badge badge-${r.class}">${r.class}</span></td>
+      <td>
+        <div class="conf-bar-row">
+          <div class="conf-bar"><div class="conf-bar-fill ${r.class}" style="width:${conf}%"></div></div>
+          <span class="conf-num">${conf}%</span>
+        </div>
+      </td>
+      <td class="t-mono t-xs text-muted">${r.source || 'predict'}</td>
+      <td>${r.uncertain
+        ? '<span class="badge badge-warn">uncertain</span>'
+        : '<span class="badge badge-ok">confident</span>'}</td>
+    </tr>`;
   }).join('');
 }
 
-/* ---------- FETCH TELEMETRY LEDGER CORE LAYER ---------- */
-async function fetchObservabilityLogsLedger() {
-  try {
-    const networkResponse = await fetch('/stats');
-    if (!networkResponse.ok) throw new Error('Database logger analytics metrics retrieval error.');
-    const dataRecordsPayload = await networkResponse.json();
-    
-    renderExecutiveTelemMetrics(dataRecordsPayload);
-    constructPerformanceCharts(dataRecordsPayload);
-  } catch (err) {
-    console.error("Telemetry server logs disconnected. Simulating corporate monitoring workspace data layers...");
-    
-    // Simulate data structure if uvicorn is offline or preview is launched standalone
-    const mockSimulatedStats = {
-      total_predictions: 142,
-      class_counts: { cat: 74, dog: 68 },
-      avg_confidence: { cat: 0.884, dog: 0.865, overall: 0.874 },
-      uncertain_count: 12,
-      uncertain_rate: 0.0845,
-      confidence_histogram: [2, 1, 4, 3, 5, 8, 12, 24, 38, 45],
-      recent: [
-        { timestamp: new Date().toISOString(), class: "cat", confidence: 0.942, uncertain: false, source: "predict" },
-        { timestamp: new Date(Date.now() - 60000).toISOString(), class: "dog", confidence: 0.584, uncertain: true, source: "predict" },
-        { timestamp: new Date(Date.now() - 120000).toISOString(), class: "dog", confidence: 0.891, uncertain: false, source: "predict-gradcam" },
-        { timestamp: new Date(Date.now() - 180000).toISOString(), class: "cat", confidence: 0.452, uncertain: true, source: "predict" },
-        { timestamp: new Date(Date.now() - 240000).toISOString(), class: "cat", confidence: 0.978, uncertain: false, source: "predict" }
-      ]
-    };
-    
-    renderExecutiveTelemMetrics(mockSimulatedStats);
-    constructPerformanceCharts(mockSimulatedStats);
-  }
-}
+/* ── Sidebar nav active on scroll ──────────────────────────────── */
+const navMap = { overview: 'nav-overview', charts: 'nav-charts', log: 'nav-log' };
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      Object.values(navMap).forEach(id => document.getElementById(id)?.classList.remove('active'));
+      const navId = navMap[e.target.id];
+      if (navId) document.getElementById(navId)?.classList.add('active');
+    }
+  });
+}, { threshold: 0.3 });
+['overview','charts','log'].forEach(id => { const el = document.getElementById(id); if (el) observer.observe(el); });
 
-/* ---------- RUNTIME INTERSECTION OBSERVER COUPLING ---------- */
-function bindScrollAnchorHighlights() {
-  const sections = document.querySelectorAll('section[id]');
-  const navigationItems = document.querySelectorAll('.menu-nav-item');
-  
-  const scrollingLinkObserver = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        navigationItems.forEach(navLink => {
-          navLink.classList.toggle('active', navLink.getAttribute('href') === `#${entry.target.id}`);
-        });
-      }
-    });
-  }, { threshold: 0.35, rootMargin: "0px 0px -20% 0px" });
+/* ── Init ──────────────────────────────────────────────────────── */
+document.getElementById('refreshBtn').onclick = loadStats;
 
-  sections.forEach(secNode => scrollingLinkObserver.observe(secNode));
-}
-
-// Window lifecycle loader
-window.onload = () => {
-  fetchObservabilityLogsLedger();
-  bindScrollAnchorHighlights();
-};
+buildCharts();
+loadStats();
+setInterval(loadStats, 30_000);
