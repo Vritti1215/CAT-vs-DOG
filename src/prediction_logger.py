@@ -8,30 +8,38 @@ adding infrastructure overhead to a portfolio project.
 """
 
 import json
+import logging
 import os
 import threading
 from datetime import datetime, timezone
 
-LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "checkpoints", "predictions_log.jsonl")
+logger = logging.getLogger(__name__)
+
+# Use abspath so this works correctly on Windows regardless of working directory
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_ROOT = os.path.dirname(_THIS_DIR)
+LOG_PATH = os.path.join(_PROJECT_ROOT, "checkpoints", "predictions_log.jsonl")
+
+logger.info(f"[prediction_logger] Log path: {LOG_PATH}")
+
 _lock = threading.Lock()
 
 
 def log_prediction(pred_class: str, confidence: float, uncertain: bool, source: str = "predict"):
-    """Append one prediction record. Thread-safe, fails silently (logging should never break inference)."""
     record = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "class": pred_class,
         "confidence": confidence,
         "uncertain": uncertain,
-        "source": source,  # "predict" or "predict-gradcam"
+        "source": source,
     }
     try:
         os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
         with _lock:
-            with open(LOG_PATH, "a") as f:
+            with open(LOG_PATH, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record) + "\n")
-    except Exception:
-        pass  # logging must never crash a prediction request
+    except Exception as e:
+        logger.error(f"[prediction_logger] Failed to write log: {e}")
 
 
 def read_all_predictions():

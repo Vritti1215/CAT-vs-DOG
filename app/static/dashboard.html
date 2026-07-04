@@ -4,177 +4,355 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard · Cat vs Dog</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<link rel="stylesheet" href="/static/css/style.css">
-<link rel="stylesheet" href="/static/css/dashboard.css">
+<style>
+:root {
+  --bg:#F4F4F3; --surface:#FFFFFF; --surface2:#FAFAF9;
+  --border:#E8E8E6; --border2:#D4D4D1;
+  --text:#111110; --muted:#737370; --faint:#B0B0AC;
+  --cat:#C4622D; --dog:#2558A8; --good:#1D7A4F; --warn:#8A6500;
+  --radius:8px;
+}
+html.dark {
+  --bg:#0D0D0C; --surface:#171715; --surface2:#1E1E1B;
+  --border:#272724; --border2:#353532;
+  --text:#EEEEE8; --muted:#87877F; --faint:#555550;
+  --cat:#E07848; --dog:#4A7FD4; --good:#3BAD72; --warn:#C49A00;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; -webkit-font-smoothing: antialiased; font-size: 14px; }
+
+/* ── Sidebar ── */
+.sidebar { width: 228px; flex-shrink: 0; height: 100vh; position: sticky; top: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.sb-top { padding: 20px 16px 16px; border-bottom: 1px solid var(--border); }
+.sb-brand { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.sb-brand-dot { width: 7px; height: 7px; background: var(--text); border-radius: 50%; }
+.sb-brand-name { font-size: 13px; font-weight: 700; letter-spacing: -.01em; }
+.sb-brand-env { margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--faint); border: 1px solid var(--border2); border-radius: 3px; padding: 2px 6px; }
+.sb-back { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); text-decoration: none; cursor: pointer; }
+.sb-back:hover { color: var(--text); }
+.sb-nav { flex: 1; padding: 10px 8px; overflow-y: auto; }
+.nav-group-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); padding: 8px 8px 5px; }
+.nav-item { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 6px; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none; transition: background .1s, color .1s; margin-bottom: 1px; }
+.nav-item:hover { background: rgba(128,128,120,.08); color: var(--text); }
+.nav-item.active { background: rgba(128,128,120,.13); color: var(--text); font-weight: 600; }
+.nav-item-icon { width: 15px; height: 15px; flex-shrink: 0; opacity: .6; }
+.nav-item.active .nav-item-icon { opacity: 1; }
+.sb-stats { padding: 14px 16px; border-top: 1px solid var(--border); }
+.sb-stats-title { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin-bottom: 10px; }
+.sb-stat { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+.sb-stat:last-child { margin-bottom: 0; }
+.sb-stat-label { font-size: 12px; color: var(--muted); }
+.sb-stat-value { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.sb-actions { padding: 10px 8px 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+.sb-btn { display: flex; align-items: center; gap: 7px; width: 100%; padding: 7px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; color: var(--muted); border: 1px solid transparent; background: transparent; cursor: pointer; font-family: 'Inter', system-ui; transition: background .1s, color .1s, border-color .1s; text-align: left; }
+.sb-btn:hover { background: rgba(128,128,120,.08); color: var(--text); border-color: var(--border); }
+
+/* ── Main ── */
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+/* ── Top bar ── */
+.topbar { background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: stretch; padding: 0 24px; flex-shrink: 0; }
+.topbar-tabs { display: flex; align-items: stretch; gap: 0; }
+.topbar-tab { display: flex; align-items: center; gap: 6px; padding: 0 18px; height: 46px; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: color .1s, border-color .1s; white-space: nowrap; user-select: none; }
+.topbar-tab:hover { color: var(--text); }
+.topbar-tab.active { color: var(--text); border-bottom-color: var(--text); font-weight: 600; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.live-pill { display: flex; align-items: center; gap: 5px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--good); }
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--good); animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.timestamp { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--faint); }
+
+/* ── Content area ── */
+.content { flex: 1; overflow-y: auto; }
+
+/* ── Pages ── */
+.page { display: none; padding: 24px; }
+.page.active { display: block; }
+.page-header { margin-bottom: 20px; }
+.page-title { font-size: 18px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 3px; }
+.page-desc { font-size: 13px; color: var(--muted); }
+
+/* ── KPI strip ── */
+.kpi-strip { display: grid; grid-template-columns: repeat(5, 1fr); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; }
+.kpi-cell { padding: 18px 18px 16px; border-right: 1px solid var(--border); }
+.kpi-cell:last-child { border-right: none; }
+.kpi-cell-label { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+.kpi-cell-value { font-family: 'JetBrains Mono', monospace; font-size: 30px; font-weight: 700; line-height: 1; }
+.kpi-cell-value.v-default { color: var(--text); }
+.kpi-cell-value.v-cat { color: var(--cat); }
+.kpi-cell-value.v-dog { color: var(--dog); }
+.kpi-cell-value.v-good { color: var(--good); }
+.kpi-cell-value.v-warn { color: var(--warn); }
+
+/* ── Two-col summary cards ── */
+.cards-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.card-header { padding: 13px 16px 11px; border-bottom: 1px solid var(--border); }
+.card-title { font-size: 12px; font-weight: 600; }
+.card-body { padding: 4px 0; }
+.card-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 16px; border-bottom: 1px solid var(--border); }
+.card-row:last-child { border-bottom: none; }
+.card-row-label { font-size: 12px; color: var(--muted); }
+.card-row-value { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.card-row-value.v-cat { color: var(--cat); }
+.card-row-value.v-dog { color: var(--dog); }
+.card-row-value.v-good { color: var(--good); }
+.card-row-value.v-warn { color: var(--warn); }
+
+/* ── Charts layout ── */
+.charts-top { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 12px; }
+.charts-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.chart-card-body { padding: 16px; }
+.chart-canvas-wrap { position: relative; }
+.chart-stats { padding: 2px 0; }
+.chart-stat-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 16px; border-bottom: 1px solid var(--border); }
+.chart-stat-row:last-child { border-bottom: none; }
+.chart-stat-label { font-size: 12px; color: var(--muted); }
+.chart-stat-value { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; }
+.chart-stat-value.v-cat { color: var(--cat); }
+.chart-stat-value.v-dog { color: var(--dog); }
+.chart-stat-value.v-good { color: var(--good); }
+.chart-stat-value.v-warn { color: var(--warn); }
+.donut-container { position: relative; display: flex; align-items: center; justify-content: center; }
+.donut-label { position: absolute; text-align: center; pointer-events: none; }
+.donut-label-big { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: var(--text); }
+.donut-label-small { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* ── Log table ── */
+.log-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.log-info { font-size: 12px; color: var(--muted); }
+.log-info strong { color: var(--text); font-family: 'JetBrains Mono', monospace; }
+.table-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.table-scroll { overflow-x: auto; max-height: calc(100vh - 210px); overflow-y: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead th { position: sticky; top: 0; background: var(--surface2); padding: 9px 16px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; z-index: 1; }
+tbody td { padding: 10px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: rgba(128,128,120,.04); }
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; }
+.badge-cat { background: rgba(196,98,45,.1); color: var(--cat); }
+.badge-dog { background: rgba(37,88,168,.1); color: var(--dog); }
+.badge-ok { background: rgba(29,122,79,.1); color: var(--good); }
+.badge-warn { background: rgba(138,101,0,.1); color: var(--warn); }
+.conf-row { display: flex; align-items: center; gap: 8px; }
+.conf-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; min-width: 60px; }
+.conf-fill { height: 100%; border-radius: 2px; }
+.conf-fill-cat { background: var(--cat); }
+.conf-fill-dog { background: var(--dog); }
+.conf-pct { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); width: 40px; text-align: right; flex-shrink: 0; }
+.row-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--faint); }
+.row-time { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); }
+.row-source { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); }
+.empty-state { padding: 48px; text-align: center; color: var(--muted); font-size: 13px; }
+.empty-state a { color: var(--cat); text-decoration: none; }
+
+/* ── Responsive ── */
+@media (max-width: 860px) {
+  .sidebar { display: none; }
+  .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+  .kpi-cell { border-right: none; border-bottom: 1px solid var(--border); }
+  .cards-2col, .charts-top, .charts-bottom { grid-template-columns: 1fr; }
+}
+</style>
 </head>
-<body class="page-dash">
+<body>
 
-<!-- Sidebar -->
+<!-- ═══════════════════ SIDEBAR ═══════════════════ -->
 <aside class="sidebar">
-  <div class="sb-logo">
-    <div class="sb-logo-dot"></div>
-    <span class="sb-logo-name">CatDog</span>
-    <span class="sb-logo-tag">LOCAL</span>
-  </div>
-
-  <div class="sb-section">
-    <div class="sb-section-label">Navigation</div>
-    <a href="/"          class="sb-link">← Classifier</a>
-    <a href="#overview"  class="sb-link active" id="nav-overview">Overview</a>
-    <a href="#charts"    class="sb-link" id="nav-charts">Charts</a>
-    <a href="#log"       class="sb-link" id="nav-log">Prediction log</a>
-  </div>
-
-  <div class="sb-section">
-    <div class="sb-section-label">Live stats</div>
-    <div class="sb-stat">
-      <div class="sb-stat-row">
-        <span class="sb-stat-label">Total</span>
-        <span class="sb-stat-value" id="sb-total">—</span>
-      </div>
-      <div class="sb-stat-row">
-        <span class="sb-stat-label">Avg confidence</span>
-        <span class="sb-stat-value" id="sb-conf">—</span>
-      </div>
-      <div class="sb-stat-row">
-        <span class="sb-stat-label">Uncertain rate</span>
-        <span class="sb-stat-value" id="sb-uncertain">—</span>
-      </div>
+  <div class="sb-top">
+    <div class="sb-brand">
+      <div class="sb-brand-dot"></div>
+      <span class="sb-brand-name">CatDog</span>
+      <span class="sb-brand-env">LOCAL</span>
     </div>
+    <a class="sb-back" href="/">
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+      Back to Classifier
+    </a>
   </div>
 
-  <div class="sb-bottom">
-    <button class="btn btn-ghost" id="refreshBtn">↻ Refresh</button>
-    <button class="btn btn-ghost" id="themeBtn">Dark mode</button>
+  <nav class="sb-nav">
+    <div class="nav-group-label">Pages</div>
+    <div class="nav-item active" data-page="overview" onclick="switchPage('overview')">
+      <svg class="nav-item-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+      Overview
+    </div>
+    <div class="nav-item" data-page="charts" onclick="switchPage('charts')">
+      <svg class="nav-item-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 14.25v2.25m3-4.5v4.5m3-6.75v6.75m3-9v9M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z"/></svg>
+      Charts
+    </div>
+    <div class="nav-item" data-page="log" onclick="switchPage('log')">
+      <svg class="nav-item-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z"/></svg>
+      Prediction Log
+    </div>
+  </nav>
+
+  <div class="sb-stats">
+    <div class="sb-stats-title">Live stats</div>
+    <div class="sb-stat"><span class="sb-stat-label">Total</span><span class="sb-stat-value" id="sbTotal">—</span></div>
+    <div class="sb-stat"><span class="sb-stat-label">Avg confidence</span><span class="sb-stat-value" id="sbConf">—</span></div>
+    <div class="sb-stat"><span class="sb-stat-label">Uncertain rate</span><span class="sb-stat-value" id="sbUncertain">—</span></div>
+  </div>
+
+  <div class="sb-actions">
+    <button class="sb-btn" onclick="loadStats()">
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+      Refresh data
+    </button>
+    <a href="/export/csv" class="sb-btn" style="text-decoration:none">
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12M12 16.5V3"/></svg>
+      Download CSV
+    </a>
+    <a href="/export/json" class="sb-btn" style="text-decoration:none">
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12M12 16.5V3"/></svg>
+      Download JSON
+    </a>
+    <button class="sb-btn" onclick="toggleTheme()">
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"/></svg>
+      Toggle dark mode
+    </button>
   </div>
 </aside>
 
-<!-- Main -->
-<main class="dash-main">
+<!-- ═══════════════════ MAIN ═══════════════════ -->
+<div class="main">
 
-  <div class="dash-topbar">
-    <span class="dash-title-sm">Prediction Dashboard</span>
-    <div class="dash-topbar-right">
-      <span class="dash-timestamp" id="lastUpdated">—</span>
+  <!-- Top tab bar -->
+  <div class="topbar">
+    <div class="topbar-tabs">
+      <div class="topbar-tab active" data-page="overview" onclick="switchPage('overview')">Overview</div>
+      <div class="topbar-tab" data-page="charts" onclick="switchPage('charts')">Charts</div>
+      <div class="topbar-tab" data-page="log" onclick="switchPage('log')">Prediction Log</div>
+    </div>
+    <div class="topbar-right">
+      <div class="live-pill"><div class="live-dot"></div>Live</div>
+      <span class="timestamp" id="ts">—</span>
     </div>
   </div>
 
-  <div class="dash-body">
+  <div class="content">
 
-    <div class="page-heading">
-      <h1>Overview</h1>
-      <p>Real-time telemetry from every prediction made in this session.</p>
-    </div>
+    <!-- ══ PAGE: Overview ══ -->
+    <div class="page active" id="page-overview">
+      <div class="page-header">
+        <div class="page-title">Overview</div>
+        <div class="page-desc">Summary of every prediction made in this session.</div>
+      </div>
 
-    <!-- KPI strip -->
-    <div class="dash-section" id="overview">
       <div class="kpi-strip">
-        <div class="kpi-cell">
-          <div class="kpi-cell-label">Total predictions</div>
-          <div class="kpi-cell-value" id="kTotal">0</div>
-        </div>
-        <div class="kpi-cell">
-          <div class="kpi-cell-label">Cats detected</div>
-          <div class="kpi-cell-value cat" id="kCats">0</div>
-        </div>
-        <div class="kpi-cell">
-          <div class="kpi-cell-label">Dogs detected</div>
-          <div class="kpi-cell-value dog" id="kDogs">0</div>
-        </div>
-        <div class="kpi-cell">
-          <div class="kpi-cell-label">Uncertain / low-conf</div>
-          <div class="kpi-cell-value warn" id="kUncertain">0</div>
-        </div>
-        <div class="kpi-cell">
-          <div class="kpi-cell-label">Avg confidence</div>
-          <div class="kpi-cell-value good" id="kConf">—</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Charts -->
-    <div class="dash-section" id="charts">
-      <div class="dash-section-header">
-        <div>
-          <div class="dash-section-title">Distribution</div>
-          <div class="dash-section-sub">Confidence histogram and class breakdown</div>
-        </div>
+        <div class="kpi-cell"><div class="kpi-cell-label">Total predictions</div><div class="kpi-cell-value v-default" id="kTotal">—</div></div>
+        <div class="kpi-cell"><div class="kpi-cell-label">Cats detected</div><div class="kpi-cell-value v-cat" id="kCats">—</div></div>
+        <div class="kpi-cell"><div class="kpi-cell-label">Dogs detected</div><div class="kpi-cell-value v-dog" id="kDogs">—</div></div>
+        <div class="kpi-cell"><div class="kpi-cell-label">Uncertain</div><div class="kpi-cell-value v-warn" id="kUncertain">—</div></div>
+        <div class="kpi-cell"><div class="kpi-cell-label">Avg confidence</div><div class="kpi-cell-value v-good" id="kConf">—</div></div>
       </div>
 
-      <div class="chart-grid-3" style="margin-bottom:14px">
-
-        <!-- Histogram -->
-        <div class="chart-card">
-          <div class="chart-card-head">
-            <div class="chart-card-title">Confidence distribution</div>
-            <div class="chart-card-sub">Predictions binned by confidence score</div>
-          </div>
-          <div class="chart-card-body chart-h-lg">
-            <canvas id="histChart"></canvas>
+      <div class="cards-2col">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Confidence by class</div></div>
+          <div class="card-body">
+            <div class="card-row"><span class="card-row-label">Cat average</span><span class="card-row-value v-cat" id="oCat">—</span></div>
+            <div class="card-row"><span class="card-row-label">Dog average</span><span class="card-row-value v-dog" id="oDog">—</span></div>
+            <div class="card-row"><span class="card-row-label">Overall average</span><span class="card-row-value v-good" id="oAll">—</span></div>
           </div>
         </div>
-
-        <!-- Donut -->
-        <div class="chart-card">
-          <div class="chart-card-head">
-            <div class="chart-card-title">Class split</div>
-            <div class="chart-card-sub">Cat vs Dog proportion</div>
-          </div>
-          <div class="chart-card-body chart-h-lg donut-wrap">
-            <canvas id="donutChart"></canvas>
-            <div class="donut-center">
-              <div class="donut-center-big"  id="donutPct">—</div>
-              <div class="donut-center-small">cat ratio</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Avg conf per class -->
-        <div class="chart-card">
-          <div class="chart-card-head">
-            <div class="chart-card-title">Avg confidence</div>
-            <div class="chart-card-sub">By class and overall</div>
-          </div>
-          <div class="chart-card-body chart-h-md" style="display:flex;flex-direction:column;justify-content:center">
-            <div class="stat-rows">
-              <div class="stat-row">
-                <span class="stat-row-label">Cat</span>
-                <span class="stat-row-value text-cat" id="confCat">—</span>
-              </div>
-              <div class="stat-row">
-                <span class="stat-row-label">Dog</span>
-                <span class="stat-row-value text-dog" id="confDog">—</span>
-              </div>
-              <div class="stat-row" style="border-top:1px solid var(--border);padding-top:10px">
-                <span class="stat-row-label">Overall</span>
-                <span class="stat-row-value" id="confAll">—</span>
-              </div>
-              <div class="stat-row">
-                <span class="stat-row-label">Uncertain rate</span>
-                <span class="stat-row-value text-warn" id="confUncertain">—</span>
-              </div>
-            </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Class distribution</div></div>
+          <div class="card-body">
+            <div class="card-row"><span class="card-row-label">Cat ratio</span><span class="card-row-value v-cat" id="oCatRatio">—</span></div>
+            <div class="card-row"><span class="card-row-label">Dog ratio</span><span class="card-row-value v-dog" id="oDogRatio">—</span></div>
+            <div class="card-row"><span class="card-row-label">Uncertain rate</span><span class="card-row-value v-warn" id="oUncertain">—</span></div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Prediction log -->
-    <div class="dash-section" id="log">
-      <div class="dash-section-header">
-        <div>
-          <div class="dash-section-title">Prediction log</div>
-          <div class="dash-section-sub">Last 20 classifications</div>
+    <!-- ══ PAGE: Charts ══ -->
+    <!-- NOTE: canvas elements have explicit width/height so Chart.js renders correctly
+         even before this page is shown. DO NOT remove the height attributes. -->
+    <div class="page" id="page-charts">
+      <div class="page-header">
+        <div class="page-title">Charts</div>
+        <div class="page-desc">Visual breakdown of prediction patterns and model performance.</div>
+      </div>
+
+      <div class="charts-top">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Confidence distribution</div>
+          </div>
+          <div class="chart-card-body">
+            <div class="chart-canvas-wrap" style="height:200px">
+              <canvas id="histChart" height="200"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Class split</div>
+          </div>
+          <div class="chart-card-body">
+            <div class="donut-container" style="height:200px">
+              <canvas id="donutChart" height="200"></canvas>
+              <div class="donut-label">
+                <div class="donut-label-big" id="donutPct">—</div>
+                <div class="donut-label-small">cat ratio</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="chart-card">
-        <div class="data-table-wrap" style="max-height:340px;overflow-y:auto">
-          <table class="data-table">
+
+      <div class="charts-bottom">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Average confidence by class</div></div>
+          <div class="chart-stats">
+            <div class="chart-stat-row"><span class="chart-stat-label">Cat</span><span class="chart-stat-value v-cat" id="cCat">—</span></div>
+            <div class="chart-stat-row"><span class="chart-stat-label">Dog</span><span class="chart-stat-value v-dog" id="cDog">—</span></div>
+            <div class="chart-stat-row"><span class="chart-stat-label">Overall</span><span class="chart-stat-value v-good" id="cAll">—</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Reliability</div></div>
+          <div class="chart-stats">
+            <div class="chart-stat-row"><span class="chart-stat-label">Confident predictions</span><span class="chart-stat-value v-good" id="cConfident">—</span></div>
+            <div class="chart-stat-row"><span class="chart-stat-label">Uncertain predictions</span><span class="chart-stat-value v-warn" id="cUncertCount">—</span></div>
+            <div class="chart-stat-row"><span class="chart-stat-label">Uncertain rate</span><span class="chart-stat-value v-warn" id="cUncertRate">—</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PAGE: Prediction Log ══ -->
+    <div class="page" id="page-log">
+      <div class="page-header">
+        <div class="page-title">Prediction Log</div>
+        <div class="page-desc">Every classification is logged here automatically.</div>
+      </div>
+
+      <div class="log-toolbar">
+        <div class="log-info"><strong id="logCount">—</strong> records</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="sb-btn" style="width:auto;padding:6px 12px" onclick="loadStats()">↻ Refresh</button>
+          <a href="/export/csv" class="sb-btn" style="width:auto;padding:6px 12px;text-decoration:none">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12M12 16.5V3"/></svg>
+            Export CSV
+          </a>
+          <a href="/export/json" class="sb-btn" style="width:auto;padding:6px 12px;text-decoration:none">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12M12 16.5V3"/></svg>
+            Export JSON
+          </a>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-scroll">
+          <table>
             <thead>
               <tr>
+                <th>#</th>
                 <th>Time</th>
                 <th>Class</th>
                 <th>Confidence</th>
@@ -185,15 +363,248 @@
             <tbody id="logBody"></tbody>
           </table>
           <div class="empty-state" id="emptyLog">
-            No predictions yet — <a href="/">go classify some images</a> and come back.
+            No predictions yet — <a href="/">go classify some images</a> and refresh.
           </div>
         </div>
       </div>
     </div>
 
-  </div>
-</main>
+  </div><!-- /content -->
+</div><!-- /main -->
 
-<script src="/static/js/dashboard.js"></script>
+<script>
+/* ─────────────────────────────────────────────
+   Theme
+───────────────────────────────────────────── */
+function toggleTheme() {
+  var dark = !document.documentElement.classList.contains('dark');
+  document.documentElement.classList.toggle('dark', dark);
+  localStorage.setItem('catdog-theme', dark ? 'dark' : 'light');
+  updateChartColors();
+}
+if (localStorage.getItem('catdog-theme') === 'dark') {
+  document.documentElement.classList.add('dark');
+}
+
+/* ─────────────────────────────────────────────
+   Page switching — no chart rebuilds, just .resize()
+───────────────────────────────────────────── */
+function switchPage(name) {
+  // Pages
+  document.querySelectorAll('.page').forEach(function(el) { el.classList.remove('active'); });
+  var pg = document.getElementById('page-' + name);
+  if (pg) pg.classList.add('active');
+
+  // Sidebar nav
+  document.querySelectorAll('.nav-item').forEach(function(el) {
+    el.classList.toggle('active', el.getAttribute('data-page') === name);
+  });
+
+  // Topbar tabs
+  document.querySelectorAll('.topbar-tab').forEach(function(el) {
+    el.classList.toggle('active', el.getAttribute('data-page') === name);
+  });
+
+  // Resize charts (not rebuild) so they fit their now-visible container
+  if (name === 'charts') {
+    requestAnimationFrame(function() {
+      if (histChart)  histChart.resize();
+      if (donutChart) donutChart.resize();
+    });
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Helpers
+───────────────────────────────────────────── */
+function cv(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function pct(v) { return (v != null) ? (parseFloat(v) * 100).toFixed(1) + '%' : '—'; }
+function num(v) { return (v != null) ? Number(v).toLocaleString() : '—'; }
+function set(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; }
+
+/* ─────────────────────────────────────────────
+   Charts — built ONCE on page load with explicit
+   height attributes so dimensions are known even
+   while the Charts page is hidden
+───────────────────────────────────────────── */
+var histChart  = null;
+var donutChart = null;
+
+function buildCharts() {
+  var border = cv('--border') || '#E8E8E6';
+  var muted  = cv('--muted')  || '#737370';
+  var cat    = cv('--cat')    || '#C4622D';
+  var dog    = cv('--dog')    || '#2558A8';
+  var bg     = cv('--surface')|| '#FFFFFF';
+
+  Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+  Chart.defaults.font.size   = 11;
+
+  var hc = document.getElementById('histChart');
+  var dc = document.getElementById('donutChart');
+  if (!hc || !dc) return;
+
+  histChart = new Chart(hc.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: ['0–10%','10–20%','20–30%','30–40%','40–50%','50–60%','60–70%','70–80%','80–90%','90–100%'],
+      datasets: [{
+        data: new Array(10).fill(0),
+        backgroundColor: Array.from({length:10}, function(_, i) {
+          return i < 5 ? cat + 'BB' : dog + 'BB';
+        }),
+        borderRadius: 4,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: muted, font: { size: 10 } } },
+        y: { beginAtZero: true, grid: { color: border }, border: { display: false },
+             ticks: { color: muted, font: { size: 10 }, precision: 0 } }
+      }
+    }
+  });
+
+  donutChart = new Chart(dc.getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Cat', 'Dog'],
+      datasets: [{ data: [0, 0], backgroundColor: [cat, dog], borderColor: bg, borderWidth: 3, hoverOffset: 4 }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '70%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { boxWidth: 8, boxHeight: 8, padding: 14, color: muted, font: { size: 11 } }
+        }
+      }
+    }
+  });
+}
+
+function updateChartColors() {
+  if (!histChart || !donutChart) return;
+  var border = cv('--border');
+  var muted  = cv('--muted');
+  var cat    = cv('--cat');
+  var dog    = cv('--dog');
+  var bg     = cv('--surface');
+
+  histChart.data.datasets[0].backgroundColor =
+    Array.from({length:10}, function(_, i) { return i < 5 ? cat + 'BB' : dog + 'BB'; });
+  histChart.options.scales.x.ticks.color = muted;
+  histChart.options.scales.y.ticks.color = muted;
+  histChart.options.scales.y.grid.color  = border;
+  histChart.update('none');
+
+  donutChart.data.datasets[0].backgroundColor = [cat, dog];
+  donutChart.data.datasets[0].borderColor = bg;
+  donutChart.options.plugins.legend.labels.color = muted;
+  donutChart.update('none');
+}
+
+/* ─────────────────────────────────────────────
+   Data loading
+───────────────────────────────────────────── */
+function loadStats() {
+  fetch('/stats')
+    .then(function(r) { return r.json(); })
+    .then(function(s) { render(s); })
+    .catch(function(e) { set('ts', 'Error · ' + e.message); });
+}
+
+function render(s) {
+  var total     = s.total || 0;
+  var cats      = (s.class_counts && s.class_counts.cat) || 0;
+  var dogs      = (s.class_counts && s.class_counts.dog) || 0;
+  var uncertain = s.uncertain_count || 0;
+  var conf      = s.avg_confidence  || {};
+
+  /* Overview */
+  set('kTotal',    num(total));
+  set('kCats',     num(cats));
+  set('kDogs',     num(dogs));
+  set('kUncertain',num(uncertain));
+  set('kConf',     pct(conf.overall));
+  set('oCat',      pct(conf.cat));
+  set('oDog',      pct(conf.dog));
+  set('oAll',      pct(conf.overall));
+  set('oUncertain',pct(s.uncertain_rate));
+  set('oCatRatio', total > 0 ? Math.round(cats / total * 100) + '%' : '—');
+  set('oDogRatio', total > 0 ? Math.round(dogs / total * 100) + '%' : '—');
+
+  /* Sidebar */
+  set('sbTotal',    num(total));
+  set('sbConf',     pct(conf.overall));
+  set('sbUncertain',pct(s.uncertain_rate));
+
+  /* Charts page stats */
+  set('cCat',        pct(conf.cat));
+  set('cDog',        pct(conf.dog));
+  set('cAll',        pct(conf.overall));
+  set('cConfident',  num(total - uncertain));
+  set('cUncertCount',num(uncertain));
+  set('cUncertRate', pct(s.uncertain_rate));
+
+  /* Chart data */
+  if (histChart && s.confidence_histogram) {
+    histChart.data.datasets[0].data = s.confidence_histogram;
+    histChart.update();
+  }
+  if (donutChart && total > 0) {
+    donutChart.data.datasets[0].data = [cats, dogs];
+    donutChart.update();
+    set('donutPct', Math.round(cats / total * 100) + '%');
+  }
+
+  /* Log */
+  var rows = s.recent || [];
+  set('logCount', num(total));
+  renderTable(rows);
+
+  set('ts', new Date().toLocaleTimeString());
+}
+
+function renderTable(rows) {
+  var tbody = document.getElementById('logBody');
+  var empty = document.getElementById('emptyLog');
+  if (!tbody) return;
+
+  if (!rows.length) {
+    tbody.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  tbody.innerHTML = rows.map(function(r, i) {
+    var conf = (r.confidence * 100).toFixed(1);
+    var t    = new Date(r.timestamp).toLocaleTimeString();
+    var n    = rows.length - i;
+    return '<tr>'
+      + '<td><span class="row-num">' + n + '</span></td>'
+      + '<td><span class="row-time">' + t + '</span></td>'
+      + '<td><span class="badge badge-' + r.class + '">' + r.class + '</span></td>'
+      + '<td><div class="conf-row"><div class="conf-bar"><div class="conf-fill conf-fill-' + r.class + '" style="width:' + conf + '%"></div></div><span class="conf-pct">' + conf + '%</span></div></td>'
+      + '<td><span class="row-source">' + (r.source || 'predict') + '</span></td>'
+      + '<td>' + (r.uncertain ? '<span class="badge badge-warn">uncertain</span>' : '<span class="badge badge-ok">confident</span>') + '</td>'
+      + '</tr>';
+  }).join('');
+}
+
+/* ─────────────────────────────────────────────
+   Boot — charts built immediately on load
+───────────────────────────────────────────── */
+buildCharts();
+loadStats();
+setInterval(loadStats, 5000);
+</script>
 </body>
 </html>

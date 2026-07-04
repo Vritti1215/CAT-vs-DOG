@@ -211,10 +211,68 @@ async def analyze(file: UploadFile = File(...)):
     }
 
 
+@app.get("/debug")
+def debug():
+    """Shows the log file path and how many records are in it. Use this to verify logging works."""
+    from prediction_logger import LOG_PATH, read_all_predictions
+    records = read_all_predictions()
+    return {
+        "log_path": LOG_PATH,
+        "log_exists": os.path.exists(LOG_PATH),
+        "record_count": len(records),
+        "last_3": records[-3:] if records else [],
+    }
+
+
 @app.get("/stats")
 def stats():
     """Aggregated prediction statistics for the dashboard."""
     return compute_stats()
+
+
+@app.get("/export/csv")
+def export_csv():
+    """Download all predictions as a CSV file."""
+    from prediction_logger import read_all_predictions
+    from fastapi.responses import StreamingResponse
+    import csv
+
+    records = read_all_predictions()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["#", "timestamp", "class", "confidence", "uncertain", "uncertainty_reason", "source"])
+    for i, r in enumerate(records, 1):
+        writer.writerow([
+            i,
+            r.get("timestamp", ""),
+            r.get("class", ""),
+            r.get("confidence", ""),
+            r.get("uncertain", ""),
+            r.get("uncertainty_reason", ""),
+            r.get("source", ""),
+        ])
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=predictions.csv"}
+    )
+
+
+@app.get("/export/json")
+def export_json():
+    """Download all predictions as a JSON file."""
+    from prediction_logger import read_all_predictions
+    from fastapi.responses import Response
+    import json
+
+    records = read_all_predictions()
+    content = json.dumps({"total": len(records), "predictions": records}, indent=2)
+    return Response(
+        content=content,
+        media_type="application/json",
+        headers={"Content-Disposition": "attachment; filename=predictions.json"}
+    )
 
 
 @app.get("/dashboard")

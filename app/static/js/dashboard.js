@@ -191,6 +191,20 @@ const observer = new IntersectionObserver(entries => {
 /* ── Init ──────────────────────────────────────────────────────── */
 document.getElementById('refreshBtn').onclick = loadStats;
 
-buildCharts();
-loadStats();
-setInterval(loadStats, 30_000);
+async function loadStatsWithError() {
+  try {
+    const res = await fetch('/stats');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const s = await res.json();
+    renderAll(s);
+  } catch(e) {
+    console.error('Dashboard loadStats error:', e);
+    document.getElementById('lastUpdated').textContent = 'Error: ' + e.message;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  buildCharts();
+  loadStatsWithError();
+  setInterval(loadStatsWithError, 5_000);
+});
