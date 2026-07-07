@@ -9,3 +9,10 @@ checkpoints/*.pt
 checkpoints/misclassified/
 .DS_Store
 *.egg-info/
+data/
+*.tar.gz
+*.zip
+*.h5
+*.keras
+*.pth
+*.pt

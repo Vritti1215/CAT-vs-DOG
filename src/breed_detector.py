@@ -1,19 +1,26 @@
 """
-Breed detection using pretrained MobileNetV2 on ImageNet.
-ImageNet contains ~120 dog breeds (classes 151-268) and several cat types
-(classes 281-285), so no additional training is needed — the pretrained
-weights already know breeds from ImageNet pretraining.
+Breed detection — two modes:
+
+1. TRAINED MODE (preferred): if checkpoints/breed_model.pt exists (trained on Oxford-IIIT Pet),
+   uses that model for accurate 37-breed classification.
+
+2. FALLBACK MODE: uses pretrained ImageNet MobileNetV2 weights which contain
+   ~120 dog breeds and a few cat types. Less accurate but needs no extra training.
 
 Also provides image quality/property analysis via PIL.
 """
 
 import numpy as np
+import os
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from PIL import Image, ImageFilter
 from torchvision import models, transforms
 
-# ImageNet preprocessing (standard)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BREED_CHECKPOINT = os.path.join(PROJECT_ROOT, "checkpoints", "breed_model.pt")
+
 _imagenet_transforms = transforms.Compose([
     transforms.Resize(256),
     transforms.CenterCrop(224),
@@ -82,46 +89,109 @@ CAT_INDICES = {281, 282, 283, 284, 285}
 DOG_INDICES = set(range(151, 269))
 PET_INDICES = CAT_INDICES | DOG_INDICES
 
-_breed_model = None
+_breed_model  = None
+_breed_classes = None
+_imagenet_model = None
 
 
-def _get_breed_model(device: str = "cpu"):
-    """Lazy-load the pretrained ImageNet model (shared across requests)."""
-    global _breed_model
-    if _breed_model is None:
+def _load_trained_breed_model(device: str = "cpu"):
+    """Load the Oxford-IIIT trained breed model if checkpoint exists."""
+    global _breed_model, _breed_classes
+    if _breed_model is not None:
+        return _breed_model, _breed_classes
+
+    if not os.path.exists(BREED_CHECKPOINT):
+        return None, None
+
+    checkpoint = torch.load(BREED_CHECKPOINT, map_location=device)
+    classes = checkpoint["classes"]
+
+    m = models.mobilenet_v2(weights=None)
+    in_features = m.classifier[1].in_features
+    m.classifier = nn.Sequential(
+        nn.Dropout(0.4),
+        nn.Linear(in_features, 256),
+        nn.ReLU(),
+        nn.Dropout(0.3),
+        nn.Linear(256, len(classes)),
+    )
+    m.load_state_dict(checkpoint["state_dict"])
+    m.to(device).eval()
+    _breed_model  = m
+    _breed_classes = classes
+    return _breed_model, _breed_classes
+
+
+def _get_imagenet_model(device: str = "cpu"):
+    global _imagenet_model
+    if _imagenet_model is None:
         m = models.mobilenet_v2(weights=models.MobileNet_V2_Weights.IMAGENET1K_V1)
         m.to(device).eval()
-        _breed_model = m
-    return _breed_model
+        _imagenet_model = m
+    return _imagenet_model
 
 
 def detect_breeds(pil_image: Image.Image, predicted_class: str, device: str = "cpu", top_k: int = 3):
     """
-    Returns top_k breed suggestions using ImageNet pretrained MobileNetV2.
-    Filters results to match the predicted class (cats → cat classes, dogs → dog classes).
+    Returns top_k breed suggestions.
+    Uses trained Oxford-IIIT model if available, otherwise falls back to ImageNet inference.
     """
-    model = _get_breed_model(device)
     tensor = _imagenet_transforms(pil_image.convert("RGB")).unsqueeze(0).to(device)
 
+    # Try trained model first
+    trained_model, classes = _load_trained_breed_model(device)
+    if trained_model is not None:
+        with torch.no_grad():
+            logits = trained_model(tensor)
+            probs  = F.softmax(logits, dim=1)[0]
+
+        # Filter to the relevant animal class if class names contain cat/dog hints
+        cat_keywords = {"cat", "kitten", "abyssinian", "siamese", "persian", "ragdoll",
+                        "bengal", "birman", "bombay", "british", "egyptian", "maine",
+                        "russian", "sphynx"}
+        dog_keywords = {"dog", "puppy", "hound", "terrier", "retriever", "spaniel",
+                        "shepherd", "bulldog", "poodle", "husky", "labrador", "beagle",
+                        "boxer", "pug", "corgi", "setter", "pointer", "schnauzer"}
+
+        scores = []
+        for idx, cls in enumerate(classes):
+            cls_lower = cls.lower()
+            words = set(cls_lower.split())
+            is_cat_breed = bool(words & cat_keywords)
+            is_dog_breed = bool(words & dog_keywords)
+            if predicted_class == "cat" and (is_cat_breed or not is_dog_breed):
+                scores.append((cls, probs[idx].item()))
+            elif predicted_class == "dog" and (is_dog_breed or not is_cat_breed):
+                scores.append((cls, probs[idx].item()))
+
+        # Fallback: if filtering left nothing, use all
+        if not scores:
+            scores = [(cls, probs[i].item()) for i, cls in enumerate(classes)]
+
+        scores.sort(key=lambda x: x[1], reverse=True)
+        total = sum(s for _, s in scores[:top_k]) or 1.0
+        return [
+            {"breed": name, "probability": round(score, 4),
+             "relative_pct": round(score / total * 100, 1), "source": "trained"}
+            for name, score in scores[:top_k]
+        ]
+
+    # Fallback: ImageNet inference
+    model = _get_imagenet_model(device)
     with torch.no_grad():
         logits = model(tensor)
         probs  = F.softmax(logits, dim=1)[0]
 
     relevant_indices = CAT_INDICES if predicted_class == "cat" else DOG_INDICES
-
     breed_scores = [
         (IMAGENET_PET_CLASSES[idx], probs[idx].item())
         for idx in relevant_indices
     ]
     breed_scores.sort(key=lambda x: x[1], reverse=True)
-
     total = sum(s for _, s in breed_scores[:top_k]) or 1.0
     return [
-        {
-            "breed": name,
-            "probability": round(score, 4),
-            "relative_pct": round(score / total * 100, 1),
-        }
+        {"breed": name, "probability": round(score, 4),
+         "relative_pct": round(score / total * 100, 1), "source": "imagenet"}
         for name, score in breed_scores[:top_k]
     ]
 
