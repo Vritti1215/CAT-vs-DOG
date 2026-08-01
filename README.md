@@ -34,11 +34,11 @@ Trained on CPU. No GPU required to run inference.
 - Full prediction log with timestamps, confidence bars, and status badges
 - Export predictions as CSV or JSON with one click
 - Auto-refreshes every 5 seconds
+- Dark / light theme
 
 **Engineering**
 - FastAPI backend with 10 endpoints
 - Prediction logging to disk (JSON Lines) with thread-safe writes
-- Dark / light theme with localStorage persistence
 - Dockerised for one-command deployment
 - Unit tests for data pipeline and model forward pass
 
@@ -75,9 +75,12 @@ catdog/
 │   ├── train/ val/ test/     # Cat vs Dog splits (70/15/15)
 │   └── breeds/               # Oxford-IIIT Pet splits (80/20)
 ├── checkpoints/
-│   ├── best_model.pt         # Cat vs Dog checkpoint
-│   ├── breed_model.pt        # 37-breed checkpoint
-│   └── predictions_log.jsonl # Prediction telemetry
+│   ├── best_model.pt         # Cat vs Dog checkpoint (~9.3 MB)
+│   ├── breed_model.pt        # 37-breed checkpoint (~10 MB)
+│   ├── breed_classes.txt     # Breed label mapping (37 classes)
+│   ├── confusion_matrix.png  # Evaluation confusion matrix
+│   ├── predictions_log.jsonl # Prediction telemetry
+│   └── misclassified/        # Error analysis samples
 ├── tests/
 │   └── test_dataset.py
 ├── Dockerfile
@@ -101,7 +104,7 @@ pip install -r requirements.txt
 
 **2. Prepare the Cat vs Dog dataset**
 
-Download [Dogs vs Cats](https://www.kaggle.com/c/dogs-vs-cats/data) from Kaggle and unzip the train folder, then:
+Download [Dogs vs Cats](https://www.kaggle.com/c/dogs-vs-cats/data) from Kaggle, unzip the train folder, then:
 
 ```bash
 python src/prepare_data.py --reorganize path/to/train_flat_folder
@@ -147,7 +150,7 @@ Prints accuracy / precision / recall / F1, saves confusion matrix to `checkpoint
 ## Running the App
 
 ```bash
-# Windows
+# Windows (Anaconda)
 $env:KMP_DUPLICATE_LIB_OK="TRUE"
 uvicorn app.main:app --reload --port 8000
 
@@ -155,8 +158,10 @@ uvicorn app.main:app --reload --port 8000
 uvicorn app.main:app --reload --port 8000
 ```
 
-Open `http://localhost:8000` for the classifier.
-Open `http://localhost:8000/dashboard` for the analytics dashboard.
+- Classifier:  http://localhost:8000
+- Dashboard:   http://localhost:8000/dashboard
+- Debug log:   http://localhost:8000/debug
+- API docs:    http://localhost:8000/docs
 
 ---
 
@@ -181,10 +186,10 @@ docker run -p 8000:8000 catdog-classifier
 | GET | `/stats` | Aggregated prediction statistics (JSON) |
 | GET | `/export/csv` | Download all predictions as CSV |
 | GET | `/export/json` | Download all predictions as JSON |
-| GET | `/debug` | Log file path, existence, record count |
+| GET | `/debug` | Log file path, record count, last 3 predictions |
 | GET | `/health` | Server and model status |
 
-**Example: classify an image**
+**Example — classify an image**
 
 ```bash
 curl -X POST -F "file=@photo.jpg" http://localhost:8000/predict
@@ -200,7 +205,7 @@ curl -X POST -F "file=@photo.jpg" http://localhost:8000/predict
 }
 ```
 
-**Example: full analysis**
+**Example — full analysis with breed**
 
 ```bash
 curl -X POST -F "file=@photo.jpg" http://localhost:8000/analyze
@@ -242,13 +247,15 @@ curl -X POST -F "file=@photo.jpg" http://localhost:8000/analyze
 
 ## Key Design Decisions
 
-**Transfer learning over training from scratch.** MobileNetV2 pretrained on ImageNet gives strong feature representations with far less data and compute than training a CNN from scratch. Only the classifier head (and last 3–4 backbone layers) are fine-tuned.
+**Transfer learning over training from scratch.** MobileNetV2 pretrained on ImageNet gives strong feature representations with far less data and compute than training a CNN from scratch. Only the classifier head and last 3-4 backbone layers are fine-tuned.
 
 **Two-stage uncertainty detection.** A single confidence threshold incorrectly flags borderline cat/dog images as uncertain. Adding a Shannon entropy check catches cases where the model is split near 50/50 — a stronger signal that the image contains neither animal.
 
-**Modular codebase, not notebooks.** Every concern is separated into its own module with a clear interface. This makes the code testable, deployable, and readable by someone who didn't write it — which is the standard in production ML teams.
+**Dual breed detection with graceful fallback.** If the trained Oxford-IIIT breed model is present, it is used for accurate 37-breed classification. If not, the system falls back to ImageNet pretrained weights which contain ~120 dog breeds — so breed suggestions always work regardless of whether the breed model has been trained.
 
-**Prediction logging for observability.** Logging every prediction to disk (rather than just returning results) means you can debug issues, analyse model behaviour over time, and export data — exactly what a production system needs.
+**Modular codebase, not notebooks.** Every concern is separated into its own module with a clear interface. This makes the code testable, deployable, and readable — the standard in production ML teams.
+
+**Prediction logging for observability.** Logging every prediction to disk (rather than just returning results) enables debugging, behavioural analysis over time, and data export — exactly what a production system needs.
 
 ---
 
