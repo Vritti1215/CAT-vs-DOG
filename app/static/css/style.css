@@ -1,0 +1,143 @@
+/* ─── Design tokens ───────────────────────────────────────────── */
+:root {
+  --bg:        #F7F7F6;
+  --surface:   #FFFFFF;
+  --border:    #E4E4E2;
+  --border-2:  #CFCFCC;
+  --text:      #111110;
+  --muted:     #737370;
+  --faint:     #B0B0AC;
+  --cat:       #C4622D;
+  --dog:       #2B5F8E;
+  --good:      #1D7A4F;
+  --warn:      #8A6500;
+  --danger:    #B03030;
+  --accent:    #111110;
+  --radius-sm: 4px;
+  --radius:    8px;
+  --radius-lg: 12px;
+}
+
+html.dark {
+  --bg:       #0C0C0B;
+  --surface:  #161614;
+  --border:   #252522;
+  --border-2: #333330;
+  --text:     #EDEDE8;
+  --muted:    #888882;
+  --faint:    #555550;
+  --cat:      #E07848;
+  --dog:      #4A88B8;
+  --good:     #3BAD72;
+  --warn:     #C49A00;
+  --danger:   #D95050;
+  --accent:   #EDEDE8;
+}
+
+/* ─── Reset ───────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 14px; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Typography scale ────────────────────────────────────────── */
+.t-mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+.t-xs   { font-size: 11px; }
+.t-sm   { font-size: 12px; }
+.t-base { font-size: 14px; }
+.t-lg   { font-size: 16px; }
+.t-xl   { font-size: 20px; }
+.t-2xl  { font-size: 28px; }
+.t-3xl  { font-size: 36px; }
+
+.fw-400 { font-weight: 400; }
+.fw-500 { font-weight: 500; }
+.fw-600 { font-weight: 600; }
+
+.text-muted  { color: var(--muted); }
+.text-faint  { color: var(--faint); }
+.text-cat    { color: var(--cat); }
+.text-dog    { color: var(--dog); }
+.text-good   { color: var(--good); }
+.text-warn   { color: var(--warn); }
+.text-danger { color: var(--danger); }
+
+/* ─── Theme toggle ────────────────────────────────────────────── */
+.theme-btn {
+  background: none; border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px; cursor: pointer; color: var(--muted);
+  font-size: 13px; transition: border-color 120ms, color 120ms;
+  line-height: 1.5;
+}
+.theme-btn:hover { border-color: var(--border-2); color: var(--text); }
+
+/* ─── Surface / card ──────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* ─── Buttons ─────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  border: 1px solid transparent; transition: all 100ms ease;
+  white-space: nowrap; text-decoration: none;
+}
+.btn-primary {
+  background: var(--text); color: var(--bg);
+  border-color: var(--text);
+}
+.btn-primary:hover { opacity: .88; }
+.btn-ghost {
+  background: transparent; color: var(--muted);
+  border-color: var(--border);
+}
+.btn-ghost:hover { border-color: var(--border-2); color: var(--text); }
+.btn:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+
+/* ─── Badge / pill ────────────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: 2px 7px; border-radius: 20px;
+  font-size: 11px; font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: .02em;
+}
+.badge-cat    { background: rgba(196,98,45,.1);   color: var(--cat); }
+.badge-dog    { background: rgba(43,95,142,.1);   color: var(--dog); }
+.badge-ok     { background: rgba(29,122,79,.1);   color: var(--good); }
+.badge-warn   { background: rgba(138,101,0,.1);   color: var(--warn); }
+.badge-muted  { background: rgba(115,115,112,.1); color: var(--muted); }
+
+/* ─── Divider ─────────────────────────────────────────────────── */
+.divider { border: none; border-top: 1px solid var(--border); }
+
+/* ─── Utility ─────────────────────────────────────────────────── */
+.flex         { display: flex; }
+.flex-col     { flex-direction: column; }
+.items-center { align-items: center; }
+.items-start  { align-items: flex-start; }
+.justify-between { justify-content: space-between; }
+.gap-2  { gap: 8px; }
+.gap-3  { gap: 12px; }
+.gap-4  { gap: 16px; }
+.gap-6  { gap: 24px; }
+.flex-1 { flex: 1; }
+.min-w-0 { min-width: 0; }
+.w-full  { width: 100%; }
+
+/* ─── Scrollbar ───────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
