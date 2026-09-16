@@ -5,7 +5,6 @@ data/raw/
 data/train/
 data/val/
 data/test/
-checkpoints/*.pt
 checkpoints/misclassified/
 .DS_Store
 *.egg-info/
@@ -16,3 +15,6 @@ data/
 *.keras
 *.pth
 *.pt
+
+!checkpoints/best_model.pt
+!checkpoints/breed_model.pt
